@@ -52,7 +52,12 @@ export async function NotificationList({ actor, path }: { actor: Actor; path: st
               <li key={n.id} className={`flex flex-wrap items-start justify-between gap-3 py-3 ${n.readAt ? "" : "font-medium"}`}>
                 <div className="min-w-0">
                   <p className="flex items-center gap-2">
-                    {!n.readAt && <span className="h-2 w-2 shrink-0 rounded-full bg-teal-600" aria-label="unread" />}
+                    {!n.readAt && (
+                      <>
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-teal-600" aria-hidden />
+                        <span className="sr-only">Unread:</span>
+                      </>
+                    )}
                     {n.link ? (
                       <Link href={n.link} className="text-slate-900 hover:text-teal-700 hover:underline">{n.title}</Link>
                     ) : (

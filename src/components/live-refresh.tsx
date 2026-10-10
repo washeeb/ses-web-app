@@ -42,7 +42,7 @@ export function LiveRefresh({ topics }: { topics: string[] }) {
   const label =
     state === "live" ? "Live updates on" : state === "offline" ? "Live updates reconnecting…" : state === "polling" ? "Auto-refreshes every 30 s" : "Connecting…";
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-slate-500" aria-live="polite">
+    <span className="inline-flex items-center gap-1.5 text-xs text-slate-600" aria-live="polite">
       <span className={`h-2 w-2 rounded-full ${state === "live" || state === "polling" ? "bg-emerald-500" : state === "offline" ? "bg-amber-500" : "bg-slate-300"}`} aria-hidden />
       {label}
     </span>
