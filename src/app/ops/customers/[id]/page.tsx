@@ -28,7 +28,7 @@ export default async function CustomerHistoryPage({ params }: { params: Promise<
           description={<>Customer since <DateTime value={h.org.createdAt} dateOnly />{h.org.website && <> · {h.org.website}</>}</>}
           actions={
             <>
-              <LiveRefresh topics={["orders", "invoices", "quotes", "returns"]} />
+              <LiveRefresh topics={["orders", "invoices", "quotes", "returns", "tickets", "subscriptions", "projects"]} />
               {h.org.isDemo && <Badge tone="amber">Demonstration</Badge>}
             </>
           }
@@ -135,6 +135,56 @@ export default async function CustomerHistoryPage({ params }: { params: Promise<
                 ))}
               </ul>
             )}
+          </Card>
+        )}
+
+        {h.tickets && (
+          <Card title="Support tickets" actions={<Link href={`/ops/support/new?customer=${h.org.id}`} className="btn btn-ghost">New ticket</Link>}>
+            {h.tickets.length === 0 ? (
+              <EmptyState title="No tickets" />
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {h.tickets.map((t) => (
+                  <li key={t.id} className="flex flex-wrap items-center gap-2">
+                    <Link href={`/ops/support/${t.id}`} className="font-medium text-teal-700 hover:underline">{t.number}</Link>
+                    <StatusBadge status={t.status} />
+                    <span className="text-slate-700">{t.subject}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
+
+        {h.subscriptions && (
+          <Card title="Subscriptions">
+            {h.subscriptions.length === 0 ? (
+              <EmptyState title="No subscriptions" />
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {h.subscriptions.map((s) => (
+                  <li key={s.id} className="flex flex-wrap items-center gap-2">
+                    <Link href={`/ops/subscriptions/${s.id}`} className="font-medium text-teal-700 hover:underline">{s.number}</Link>
+                    <StatusBadge status={s.status} />
+                    <span className="text-slate-700">{s.quantity} × {s.description} · until <DateTime value={s.currentPeriodEnd} dateOnly /></span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        )}
+
+        {h.projects && h.projects.length > 0 && (
+          <Card title="Projects">
+            <ul className="space-y-2 text-sm">
+              {h.projects.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-center gap-2">
+                  <Link href={`/ops/projects/${p.id}`} className="font-medium text-teal-700 hover:underline">{p.number}</Link>
+                  <StatusBadge status={p.status} />
+                  <span className="text-slate-700">{p.name}</span>
+                </li>
+              ))}
+            </ul>
           </Card>
         )}
 

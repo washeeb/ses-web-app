@@ -28,6 +28,8 @@ import { activeTaxes, getSettings, nextNumber, operatorOrgId } from "./settings"
 import { announce, customerRecipients, notifyApprovers, notifyPermission, notifyUsers } from "./notifications";
 import { createWarrantiesForOrder } from "./returns";
 import { issueInvoiceForOrder, settleInvoicesForClosedOrder } from "./invoices";
+import { createSubscriptionsForOrder } from "./subscriptions";
+import { createAssetsForOrder } from "./assets";
 
 // ───────────────────────────── Enquiries & leads ─────────────────────────────
 
@@ -481,11 +483,15 @@ export async function fulfilOrder(db: DB, actor: Actor, id: string) {
     const fulfilledAt = new Date();
     await tx.update(orders).set({ status: "fulfilled", fulfilledAt }).where(eq(orders.id, id));
     const warrantyCount = await createWarrantiesForOrder(tx, id, fulfilledAt);
-    await audit(tx, { actor, action: "order.fulfilled", targetType: "order", targetId: id, data: { warranties: warrantyCount } });
+    const subscriptionCount = await createSubscriptionsForOrder(tx, id, fulfilledAt);
+    const assetCount = await createAssetsForOrder(tx, id, fulfilledAt);
+    await audit(tx, { actor, action: "order.fulfilled", targetType: "order", targetId: id, data: { warranties: warrantyCount, subscriptions: subscriptionCount, assets: assetCount } });
     await notifyUsers(tx, await customerRecipients(tx, "customer.orders.read", o.customerOrgId), { title: `Order ${o.number} delivered`, body: warrantyCount ? "Warranty cover has started for eligible items." : undefined, link: `/portal/orders/${id}` });
     return o;
   });
   publish({ topic: "orders", orgIds: [o.customerOrgId] });
+  publish({ topic: "subscriptions", orgIds: [o.customerOrgId] });
+  publish({ topic: "assets", orgIds: [o.customerOrgId] });
   publish({ topic: "stock" });
 }
 

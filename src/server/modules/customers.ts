@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
 import type { DB } from "../db/client";
-import { invoices, leads, orders, organizations, quotes, returnRequests, users } from "../db/schema";
+import { invoices, leads, orders, organizations, projects, quotes, returnRequests, subscriptions, tickets, users } from "../db/schema";
 import { can, departmentFilter, type Actor } from "../authz/policy";
 import { forbidden, notFound } from "../lib/errors";
 import { OPEN_STATUSES, receivables } from "./invoices";
@@ -12,6 +12,9 @@ function access(actor: Actor) {
     orders: can(actor, "orders.read"),
     invoices: can(actor, "finance.read") || can(actor, "orders.read"),
     leads: can(actor, "leads.read"),
+    tickets: can(actor, "support.read"),
+    subscriptions: can(actor, "subscriptions.manage") || can(actor, "orders.read") || can(actor, "finance.read") || can(actor, "support.read"),
+    projects: can(actor, "projects.read"),
   };
   if (!Object.values(a).some(Boolean)) throw forbidden();
   return a;
@@ -75,5 +78,10 @@ export async function customerHistory(db: DB, actor: Actor, orgId: string) {
         .where(and(eq(orders.customerOrgId, orgId), notInArray(orders.status, ["cancelled", "expired"])))
     : [];
   const lifetimeMinor = a.orders ? Number(lifetime?.total ?? 0) : null;
-  return { org, contacts, quotes: qs, orders: os, invoices: invs, returns: rets, leads: ls, receivables: owed, lifetimeMinor };
+  const [tks, subs, projs] = await Promise.all([
+    a.tickets ? db.select().from(tickets).where(eq(tickets.customerOrgId, orgId)).orderBy(desc(tickets.createdAt)).limit(30) : Promise.resolve(null),
+    a.subscriptions ? db.select().from(subscriptions).where(eq(subscriptions.customerOrgId, orgId)).orderBy(desc(subscriptions.currentPeriodEnd)).limit(50) : Promise.resolve(null),
+    a.projects ? db.select().from(projects).where(eq(projects.customerOrgId, orgId)).orderBy(desc(projects.createdAt)).limit(30) : Promise.resolve(null),
+  ]);
+  return { org, contacts, quotes: qs, orders: os, invoices: invs, returns: rets, leads: ls, receivables: owed, lifetimeMinor, tickets: tks, subscriptions: subs, projects: projs };
 }

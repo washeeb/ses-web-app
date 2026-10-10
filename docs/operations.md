@@ -55,6 +55,13 @@ Keep secrets in the host's secret manager, never in the repository or images.
 - **Overdue reminders** go out daily after 08:00 (in-app + e-mail to the customer's invoice users), at most 3 per invoice, a week apart. They need the cron tick (shared hosting) or the worker running, and SMTP for e-mail.
 - **Exports**: Data exports → Invoices / Payments received (needs `data.export` + `finance.read`).
 
+## Services operations (M3b)
+
+- **Background jobs**: subscription renewals and ticket auto-close run daily (after 06:00); SLA breach checks run every minute (on shared hosting: each cron tick). Per-minute job records are kept for 2 days.
+- **Renewals**: the renewal invoice is issued `renewalNoticeDays` (Company settings, default 30) before the period ends, at the current catalogue price. Paying it extends the subscription. If it is still unpaid `renewalGraceDays` (default 14) after the period ended, the subscription lapses and the invoice is voided — to restart, record a new subscription.
+- **SLA**: business hours are Mon–Fri 08:00–17:00 Accra. Public holidays are **not** excluded yet — on a holiday, expect breach alerts for tickets that were not actually late; agree targets with customers accordingly.
+- **Escalation**: L2 alerts everyone with `support.write`; L3 (engineering) alerts everyone with `projects.write`.
+
 ## Monitoring
 
 - `GET /api/health`: DB latency, queued, running and dead jobs. Alert if `status` ≠ ok, if `dead` > 0, or if `queued` keeps growing.

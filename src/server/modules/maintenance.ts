@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, lt, or } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, or } from "drizzle-orm";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { uploadRoot } from "./documents";
@@ -11,7 +11,7 @@ const DAY = 86_400_000;
 /**
  * Retention clean-up, run hourly by the worker. Removes data that has no further use:
  * expired/revoked sessions (30 d), old rate-limit windows (1 d), used/expired reset tokens (7 d),
- * completed jobs (30 d; dead jobs are kept for investigation), sent mail (90 d) and files of
+ * completed jobs (30 d, or 2 d for per-minute/hourly housekeeping; dead jobs are kept for investigation), sent mail (90 d) and files of
  * documents deleted more than 90 days ago.
  */
 export async function runMaintenance(db: DB, now = new Date()) {
@@ -23,6 +23,10 @@ export async function runMaintenance(db: DB, now = new Date()) {
     await db.delete(passwordResetTokens).where(or(lt(passwordResetTokens.expiresAt, ago(7)), lt(passwordResetTokens.usedAt, ago(7)))).returning({ id: passwordResetTokens.id })
   ).length;
   counts.jobs = (await db.delete(jobs).where(and(eq(jobs.status, "done"), lt(jobs.completedAt, ago(30)))).returning({ id: jobs.id })).length;
+  // Frequent housekeeping jobs (one per minute/hour) are only kept for two days.
+  counts.jobs += (
+    await db.delete(jobs).where(and(eq(jobs.status, "done"), inArray(jobs.type, ["tickets.sla", "maintenance.hourly"]), lt(jobs.completedAt, ago(2)))).returning({ id: jobs.id })
+  ).length;
   counts.mail = (await db.delete(mailOutbox).where(and(isNotNull(mailOutbox.sentAt), lt(mailOutbox.sentAt, ago(90)))).returning({ id: mailOutbox.id })).length;
 
   const purge = await db.select().from(documents).where(and(isNotNull(documents.deletedAt), lt(documents.deletedAt, ago(90))));

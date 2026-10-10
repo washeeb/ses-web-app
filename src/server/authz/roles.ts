@@ -37,21 +37,21 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Department Manager",
     domain: "operator",
     description: "Manages a department's records; usually assigned with a department scope.",
-    permissions: [...READ_CORE, "leads.write", "quotes.write", "approvals.read", "reports.read", "users.read", "documents.read", "documents.write", "returns.manage", "data.export"],
+    permissions: [...READ_CORE, "leads.write", "quotes.write", "approvals.read", "reports.read", "users.read", "documents.read", "documents.write", "returns.manage", "data.export", "subscriptions.manage", "projects.read", "support.read"],
   },
   {
     key: "finance_officer",
     name: "Finance Officer",
     domain: "operator",
     description: "Finance records, quotation approval and price approvals.",
-    permissions: [...READ_CORE, "finance.read", "finance.write", "approvals.read", "quotes.approve", "catalogue.price.approve", "reports.read", "procurement.read", "procurement.approve", "documents.read", "refunds.approve", "data.export"],
+    permissions: [...READ_CORE, "finance.read", "finance.write", "approvals.read", "quotes.approve", "catalogue.price.approve", "reports.read", "procurement.read", "procurement.approve", "documents.read", "refunds.approve", "data.export", "subscriptions.manage"],
   },
   {
     key: "sales_officer",
     name: "Sales Officer",
     domain: "operator",
     description: "Leads, quotations and orders.",
-    permissions: [...READ_CORE, "leads.write", "quotes.write", "orders.write", "documents.read", "documents.write", "returns.manage", "data.export"],
+    permissions: [...READ_CORE, "leads.write", "quotes.write", "orders.write", "documents.read", "documents.write", "returns.manage", "data.export", "subscriptions.manage", "support.read", "projects.read"],
   },
   {
     key: "procurement_officer",
@@ -65,14 +65,14 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Warehouse Officer",
     domain: "operator",
     description: "Stock levels and order fulfilment.",
-    permissions: ["catalogue.read", "inventory.read", "inventory.adjust", "orders.read", "orders.write", "procurement.read", "procurement.receive", "documents.read", "returns.manage", "data.export"],
+    permissions: ["catalogue.read", "inventory.read", "inventory.adjust", "orders.read", "orders.write", "procurement.read", "procurement.receive", "documents.read", "returns.manage", "data.export", "assets.manage"],
   },
   {
     key: "engineer",
     name: "Engineer",
     domain: "operator",
-    description: "Delivery and engineering work.",
-    permissions: ["catalogue.read", "projects.read", "projects.write", "support.read", "integrations.read"],
+    description: "Delivery and engineering work, including escalated (third-line) support tickets.",
+    permissions: ["catalogue.read", "projects.read", "projects.write", "support.read", "support.write", "assets.manage", "integrations.read"],
   },
   {
     key: "network_operator",
@@ -86,7 +86,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Support Agent",
     domain: "operator",
     description: "Customer support and managed services.",
-    permissions: ["support.read", "support.write", "orders.read", "catalogue.read", "documents.read", "returns.manage"],
+    permissions: ["support.read", "support.write", "orders.read", "catalogue.read", "documents.read", "returns.manage", "assets.manage"],
   },
   {
     key: "hr_officer",
@@ -107,7 +107,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Read-only Auditor",
     domain: "operator",
     description: "Read-only access including the audit log. Cannot change anything.",
-    permissions: [...READ_CORE, "audit.read", "approvals.read", "finance.read", "integrations.read", "reports.read", "users.read", "procurement.read", "documents.read", "data.export"],
+    permissions: [...READ_CORE, "audit.read", "approvals.read", "finance.read", "integrations.read", "reports.read", "users.read", "procurement.read", "documents.read", "data.export", "support.read", "projects.read"],
   },
   {
     key: "partner_admin",
@@ -135,6 +135,9 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Customer User",
     domain: "customer",
     description: "Views quotations, orders and invoices.",
-    permissions: ["customer.quotes.read", "customer.orders.read", "customer.invoices.read", "customer.documents.read", "customer.returns.request"],
+    permissions: [
+      "customer.quotes.read", "customer.orders.read", "customer.invoices.read", "customer.documents.read", "customer.returns.request",
+      "customer.subscriptions.read", "customer.tickets.read", "customer.tickets.write", "customer.projects.read", "customer.assets.read",
+    ],
   },
 ];

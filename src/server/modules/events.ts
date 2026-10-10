@@ -6,7 +6,7 @@ import { EventEmitter } from "node:events";
  * Multi-instance deployments need a Postgres LISTEN/NOTIFY transport (plan M4).
  */
 export interface LiveEvent {
-  topic: "catalogue" | "stock" | "orders" | "quotes" | "approvals" | "integrations" | "leads" | "returns" | "notifications" | "invoices";
+  topic: "catalogue" | "stock" | "orders" | "quotes" | "approvals" | "integrations" | "leads" | "returns" | "notifications" | "invoices" | "subscriptions" | "tickets" | "projects" | "assets";
   /** Organisations allowed to receive the event in addition to operator staff. */
   orgIds?: string[];
   data?: Record<string, unknown>;

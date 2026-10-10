@@ -1,16 +1,17 @@
 import { and, asc, desc, eq, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { DB } from "../db/client";
-import { invoiceLines, invoices, orderLines, orders, organizations, payments, stockReservations, users } from "../db/schema";
+import { invoiceLines, invoices, orderLines, orders, organizations, payments, stockReservations, subscriptions, users } from "../db/schema";
 import { authorize, can, type Actor } from "../authz/policy";
 import { conflict, forbidden, invalid, notFound } from "../lib/errors";
-import { formatMoney } from "../lib/money";
+import { computeTotals, formatMoney } from "../lib/money";
 import { randomToken } from "../lib/crypto";
 import { audit } from "./audit";
 import { publish } from "./events";
 import { sendMail } from "./mail";
 import { announce, customerRecipients, notifyPermission, notifyUsers, usersWithPermission } from "./notifications";
-import { getSettings, nextNumber } from "./settings";
+import { activeTaxes, getSettings, nextNumber } from "./settings";
+import { addPeriod } from "./service-time";
 
 const DAY = 86_400_000;
 export const OPEN_STATUSES = ["issued", "part_paid"];
@@ -154,7 +155,65 @@ async function applyAmount(tx: DB, inv: Invoice, amountMinor: number, now: Date)
     .where(eq(invoices.id, inv.id))
     .returning();
   await syncOrderPayment(tx, updated!);
+  if (updated!.status === "paid" && updated!.subscriptionId) await renewPaidSubscription(tx, updated!);
   return updated!;
+}
+
+/** A paid renewal invoice extends its subscription by one billing period. */
+async function renewPaidSubscription(tx: DB, inv: Invoice) {
+  const [sub] = await tx.select().from(subscriptions).where(eq(subscriptions.id, inv.subscriptionId!)).for("update");
+  if (!sub || sub.renewalInvoiceId !== inv.id) return;
+  const start = sub.currentPeriodEnd;
+  const end = addPeriod(start, sub.billingPeriod);
+  await tx
+    .update(subscriptions)
+    .set({ currentPeriodStart: start, currentPeriodEnd: end, renewalInvoiceId: null, status: "active" })
+    .where(eq(subscriptions.id, sub.id));
+  await audit(tx, { action: "subscription.renewed", targetType: "subscription", targetId: sub.id, data: { invoice: inv.number, periodEnd: end.toISOString() } });
+}
+
+export interface StandaloneLine {
+  description: string;
+  quantity: number;
+  unitPriceMinor: number;
+  taxable: boolean;
+}
+
+/** Issues an invoice that is not tied to an order (e.g. a subscription renewal). Inside the caller's transaction. */
+export async function issueStandaloneInvoice(
+  tx: DB,
+  opts: { customerOrgId: string; currency: string; lines: StandaloneLine[]; dueAt: Date; subscriptionId?: string | null; notes?: string | null; actor: Actor | null; isDemo?: boolean; now?: Date },
+) {
+  const now = opts.now ?? new Date();
+  if (opts.lines.length === 0) throw invalid("An invoice needs at least one line.");
+  const totals = computeTotals({ lines: opts.lines, discountBp: 0, taxes: await activeTaxes(tx) });
+  const [inv] = await tx
+    .insert(invoices)
+    .values({
+      number: await nextNumber(tx, "INV", now),
+      customerOrgId: opts.customerOrgId,
+      subscriptionId: opts.subscriptionId ?? null,
+      status: "issued",
+      currency: opts.currency,
+      subtotalMinor: totals.subtotalMinor,
+      taxMinor: totals.taxMinor,
+      totalMinor: totals.totalMinor,
+      taxBreakdown: totals.breakdown,
+      notes: opts.notes ?? null,
+      issuedAt: now,
+      dueAt: opts.dueAt,
+      createdBy: opts.actor?.userId ?? null,
+      isDemo: opts.isDemo ?? false,
+    })
+    .returning();
+  await tx.insert(invoiceLines).values(opts.lines.map((l, i) => ({ ...l, invoiceId: inv!.id, lineTotalMinor: totals.lineTotals[i]!, sortOrder: i })));
+  await audit(tx, { actor: opts.actor, action: "invoice.issued", targetType: "invoice", targetId: inv!.id, data: { number: inv!.number, subscriptionId: opts.subscriptionId ?? null, totalMinor: inv!.totalMinor } });
+  await notifyUsers(tx, await customerRecipients(tx, "customer.invoices.read", opts.customerOrgId), {
+    title: `Invoice ${inv!.number} issued`,
+    body: `${formatMoney(inv!.totalMinor, inv!.currency)}, due ${opts.dueAt.toISOString().slice(0, 10)}.`,
+    link: `/portal/invoices/${inv!.id}`,
+  });
+  return inv!;
 }
 
 /**

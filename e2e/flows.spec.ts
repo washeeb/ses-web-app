@@ -77,3 +77,18 @@ test("customer administrator orders from the store and receives an invoice", asy
   await expect(page.getByText("Your ref. E2E-PO-1")).toBeVisible();
   await expectAccessible(page, "invoice page");
 });
+
+test.describe("customer user", () => {
+  test.use({ storageState: STATE.customer });
+  test("reports a problem and sees the response target", async ({ page }) => {
+    await page.goto("/portal/support/new");
+    await page.getByLabel("Subject").fill("E2E: scanner not connecting");
+    await page.getByLabel("What is happening?").fill("The warehouse scanner will not join the Wi-Fi since this morning.");
+    await page.getByLabel("How serious is it?").selectOption("high");
+    await page.getByRole("button", { name: "Send to support" }).click();
+    await page.waitForURL(/\/portal\/support\/.+raised=1/);
+    await expect(page.getByRole("status")).toContainText(/ticket T-\d{4}-\d{5} has been received/);
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("E2E: scanner not connecting");
+    await expectAccessible(page, "ticket page");
+  });
+});

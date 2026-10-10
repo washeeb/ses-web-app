@@ -6,13 +6,18 @@ import { requireActor } from "@/server/web/session";
 import { logout } from "../(auth)/actions";
 import { NotificationBell } from "@/components/notifications";
 
-const NAV: { href: string; label: string; perm?: Permission }[] = [
+/** A nav entry shows when the user holds any of its permissions. */
+const NAV: { href: string; label: string; perm?: Permission | Permission[] }[] = [
   { href: "/ops", label: "Dashboard" },
   { href: "/ops/leads", label: "Leads", perm: "leads.read" },
   { href: "/ops/quotes", label: "Quotations", perm: "quotes.read" },
   { href: "/ops/orders", label: "Orders", perm: "orders.read" },
   { href: "/ops/invoices", label: "Invoices", perm: "finance.read" },
   { href: "/ops/customers", label: "Customers", perm: "orders.read" },
+  { href: "/ops/support", label: "Support", perm: "support.read" },
+  { href: "/ops/subscriptions", label: "Subscriptions & contracts", perm: ["subscriptions.manage", "orders.read", "finance.read", "support.read"] },
+  { href: "/ops/projects", label: "Projects", perm: "projects.read" },
+  { href: "/ops/assets", label: "Assets", perm: ["assets.manage", "support.read", "orders.read"] },
   { href: "/ops/returns", label: "Returns & warranty", perm: "orders.read" },
   { href: "/ops/approvals", label: "Approvals", perm: "approvals.read" },
   { href: "/ops/catalogue", label: "Catalogue & stock", perm: "catalogue.read" },
@@ -27,7 +32,7 @@ const NAV: { href: string; label: string; perm?: Permission }[] = [
 
 export default async function OpsLayout({ children }: { children: React.ReactNode }) {
   const actor = await requireActor("operator", "/ops");
-  const items = NAV.filter((n) => !n.perm || can(actor, n.perm));
+  const items = NAV.filter((n) => !n.perm || (Array.isArray(n.perm) ? n.perm : [n.perm]).some((p) => can(actor, p)));
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr] print:block">
       <aside className="border-b border-slate-200 bg-white print:hidden lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">

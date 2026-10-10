@@ -37,6 +37,9 @@ export default async function SettingsPage() {
               <Field label="Support phone" htmlFor="supportPhone"><input id="supportPhone" name="supportPhone" className="field" defaultValue={s.supportPhone} /></Field>
               <Field label="Store order limit (GHS)" htmlFor="storeOrderLimit" hint="Carts at or above this total must go through a quotation."><input id="storeOrderLimit" name="storeOrderLimit" className="field" defaultValue={(s.storeOrderLimitMinor / 100).toFixed(2)} /></Field>
               <Field label="Invoice payment terms (days)" htmlFor="invoiceDueDays"><input id="invoiceDueDays" name="invoiceDueDays" type="number" min={0} className="field" defaultValue={s.invoiceDueDays} /></Field>
+              <Field label="Renewal notice before period end (days)" htmlFor="renewalNoticeDays" hint="The renewal invoice is issued then."><input id="renewalNoticeDays" name="renewalNoticeDays" type="number" min={1} max={90} className="field" defaultValue={s.renewalNoticeDays} /></Field>
+              <Field label="Renewal grace period (days)" htmlFor="renewalGraceDays" hint="Unpaid subscriptions lapse after this."><input id="renewalGraceDays" name="renewalGraceDays" type="number" min={0} max={60} className="field" defaultValue={s.renewalGraceDays} /></Field>
+              <Field label="Close resolved tickets after (days)" htmlFor="ticketAutoCloseDays"><input id="ticketAutoCloseDays" name="ticketAutoCloseDays" type="number" min={1} max={60} className="field" defaultValue={s.ticketAutoCloseDays} /></Field>
             </div>
             <fieldset className="rounded-lg border border-slate-200 p-3">
               <legend className="px-1 text-sm font-semibold">Invoice details</legend>

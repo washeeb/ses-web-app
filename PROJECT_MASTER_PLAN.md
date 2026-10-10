@@ -1,7 +1,7 @@
 # Synclytics Enterprise Systems (SES) — Project Master Plan
 
 > Living specification. Update the **Status**, **Decisions**, and **Progress log** sections as work lands.
-> Last updated: 2026-10-10 · Live: M1 + M2 · Built, not yet deployed: **M3a — Store checkout, invoices & payments** · Next: M3b (see §11)
+> Last updated: 2026-10-10 · Live: M1 + M2 · Built, not yet deployed: **M3a + M3b** (commerce, invoices, subscriptions, contracts/SLA, tickets, projects, assets) · Next: M4 (see §11)
 
 ---
 
@@ -116,9 +116,9 @@ Seeded departments: Executive Management & Administration; Sales, Business Devel
 | Order-to-payment | order (pending → confirmed → fulfilled / cancelled / expired) + invoice issued with the order (issued → part_paid → paid / void) → payments (Paystack online, or manual bank/MoMo/cash/cheque by finance) | M1 (order) / M3a (invoice, payment) |
 | Store checkout | cart (cookie: variant + qty only) → re-priced at checkout → order (source `store`) with stock reservation and invoice in one transaction; carts at/above `storeOrderLimitMinor` (default GHS 50,000) go through a quotation | M3a |
 | Procurement-to-delivery | purchase request → approval → PO → goods received → stock | M2 |
-| Project delivery | project → milestones → tasks → sign-off | M3 |
-| Ticket escalation | ticket → L1 → L2 → engineering; SLA timers, breach alerts | M3 |
-| Subscription renewal | active → renewal notice (T-30) → renewed / lapsed | M3 |
+| Project delivery | project (planning → active → on hold → completed / cancelled) → milestones → tasks → sign-off (customer administrator for customer projects; a second SES user for internal ones); completion needs every milestone signed off | M3b |
+| Ticket escalation | ticket (new → open ⇄ pending_customer → resolved → closed) at L1 → L2 → engineering (L3); response/resolution targets from the customer's contract or the standard SLA; clock pauses while waiting on the customer; breach alerts; resolved tickets reopen on customer reply and auto-close after `ticketAutoCloseDays` | M3b |
+| Subscription renewal | active → renewal invoice at T-`renewalNoticeDays` (30) → paid = next period / unpaid after `renewalGraceDays` (14) = lapsed (invoice voided); auto-renew off = ended at period end | M3b |
 
 Controlled sharing: records carry `organization_id` and optional `department_id`. Cross-department handoffs happen through state transitions (e.g. Sales converts an approved quotation into an order that Warehouse can see), not by widening permissions.
 
@@ -336,7 +336,15 @@ Knowledge-base search, ticket classification and report summaries only. Permissi
 - [x] Daily overdue reminders; Company settings for store limit, payment terms, address, TIN, payment instructions
 - Not done: credit notes (refunds are recorded on returns; finance refunds in Paystack/bank), GRA e-VAT / fiscal invoice integration (A4), Hubtel/MoMo direct adapters (Paystack already covers mobile money; no second provider chosen)
 
-**M3b — next:** subscriptions and renewals (T-30 notice → renewal invoice → renewed/lapsed), service contracts with SLA terms, support tickets with SLA timers and escalation (L1 → L2 → engineering), projects (milestones, tasks, sign-off), asset records (installed base: serials, warranty, contract).
+**M3b — built 2026-10-10 (not yet deployed):**
+- [x] Subscriptions: created when an order with monthly/yearly items is fulfilled (or recorded by staff); renewal invoices issued automatically before period end at the current catalogue price; payment (manual or Paystack) extends the period; unpaid renewals lapse after the grace period; customer administrators can stop/restart auto-renewal; staff can cancel
+- [x] Service contracts: coverage (business hours Mon–Fri 08:00–17:00 Accra, or 24×7) and response/resolution targets per priority; standard SLA when no active contract
+- [x] Support tickets: raised by customers (portal) or staff; SLA due times computed in covered time; first response tracked; internal notes never shown to customers; assignment; priority change re-targets; escalation L1 → L2 → engineering with alerts; pause while waiting on the customer; per-minute breach check with alerts; reopen on reply; daily auto-close; rate-limited for customers
+- [x] Projects: customer or internal; milestones, tasks with assignees; sign-off requests only when the milestone's tasks are done; customer administrator signs off or declines with comments (no self sign-off on internal projects — also a DB check); completion only when all milestones are signed off
+- [x] Assets: hardware auto-registered on fulfilment (one per unit, up to 100 per line), serials/locations/status/contract edited by staff; warranty and ticket history per asset; customers see their equipment and can report a problem against it
+- [x] Customer history shows tickets, subscriptions and projects; portal navigation follows each user's permissions
+- New permissions: `subscriptions.manage`, `assets.manage` (operator); `customer.subscriptions.read/manage`, `customer.tickets.read/write`, `customer.projects.read/signoff`, `customer.assets.read`. Engineers gained `support.write` (third-line tickets).
+- Not done: Ghana public holidays in the SLA clock; e-mail-to-ticket; time tracking/billing on projects; proration when subscription quantities change mid-period.
 
 ### M4 — Insight and advanced
 Department dashboards and reports, BI exports, AI assistance (§9), multi-instance event bus (Postgres NOTIFY), production hardening and pen-test.
@@ -372,6 +380,7 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 | 2026-10-10 | New partner products always arrive as **drafts**; partners never see SES sell prices; partner price rises ≥15% need approval (system-raised, so anyone with `catalogue.price.approve` may decide) |
 | 2026-10-10 | Customer Administrator holds a privileged permission (manage own users) → MFA mandatory for customer admins too |
 | 2026-10-10 | M3a: every order gets its invoice at creation (one open invoice per order); payments always apply to invoices; online payments never partial (full balance); manual-payment reversal is a two-person action |
+| 2026-10-10 | M3b: SLA clock uses Accra business hours (UTC, no DST) unless the contract is 24×7; renewals bill in advance at the then-current catalogue price; a lapsed subscription is not revived by late payment (the renewal invoice is voided) |
 | 2026-10-10 | Store ordering is for signed-in business customers only (B2B); no public self-registration; cart kept server-side-validated in a cookie rather than browser storage |
 | 2026-10-10 | Demo data refused when `NODE_ENV=production`; production seeds reference data only and bootstraps the first admin via `npm run admin:create` |
 
@@ -380,6 +389,7 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 ## 14. Progress log
 
 - 2026-10-10 — Inspected the project folder (empty). Created this plan. Started M1.
+- 2026-10-10 — M3b built: subscriptions & renewals, service contracts/SLA, support tickets with escalation and breach alerts, projects with customer sign-off, asset register. Migration 0004 (PG13-compatible). 99 unit/integration tests passing (16 new: business-hours clock, month-end periods, renewal/lapse/stop flows, customer isolation, SLA targets from contract vs standard, internal notes, pause/resume, escalation alerts, breach flagging, reopen/auto-close, asset isolation, sign-off rules). Browser-tested locally: customer raises ticket → staff reply (response met) → project with milestone and task. E2E: ticket flow + a11y on 10 new pages.
 - 2026-10-10 — M3a built: store cart/checkout, invoices, manual + Paystack invoice payments, reversals, overdue reminders, customer history, finance exports. Migration 0003 (PG13-compatible). 83 unit/integration tests passing (15 new); new e2e flows (cart → quotation request; customer admin MFA → order → invoice) and a11y checks for the new pages. Browser-tested locally: guest cart, customer checkout, invoice view, finance part-payment, customer history. CI e2e caught one bug (the quotation reference vanished when the emptied cart re-rendered) — fixed by redirecting to a confirmation; CI green, deploy bundle published.
 - 2026-10-10 — M2 deployed live; InMotion Backup Manager confirmed (home directory incl. ~/ses-data and PgSQL every 3 days, off-server).
 - 2026-10-10 — M2b CI hardening: e2e suite (53 tests, desktop + mobile, WCAG 2.1 A/AA via axe, CSP console check) green. It caught and we fixed: login rate limit tripped by per-test sign-in (now one sign-in per role), secondary-text contrast 4.4:1 on the page background (slate-500 darkened to #556275, ≥5.6:1), colour-only inline links (underlined), invalid aria-label on a span, and /forgot-password being pre-rendered without a CSP nonce (all pages now rendered per request). Deploy bundle publishes only after checks + e2e pass.
@@ -398,7 +408,7 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 
 ### Current (2026-10-10)
 - **Live** at https://synclyticsenterprisesystems.com: M1 + M2 (procurement, documents, returns/warranty, notifications, CSV, nonce CSP). Verified externally after deploy: public pages 200, `/api/health` ok, per-request CSP nonce header present. Backups: InMotion Backup Manager (home dir incl. `~/ses-data`, PgSQL; every 3 days, off-server).
-- **Built, tested, not yet deployed:** M3a (store checkout, invoices, payments, customer history) — see §11.
+- **Built, tested, not yet deployed:** M3a (store checkout, invoices, payments, customer history) and M3b (subscriptions, contracts/SLA, tickets, projects, assets) — see §11.
 - **Tested for M3a:** 83 unit/integration tests (cart tampering, pricing with Ghana taxes, checkout permissions/limits/stock, atomic order+invoice, invoice visibility across customers, manual payments with MFA/overpayment/duplicates, two-person reversal, void rules, auto-void on cancel/expiry, Paystack invoice payment incl. duplicate-after-settlement refund flag, reminders cadence, stock hold after payment). Browser (local): guest cart → totals; customer admin MFA enrolment → order → invoice; finance part-payment; customer history; no console/CSP errors. E2E + axe for the new pages run in CI.
 - **Still depends on external parties:** Paystack test/live keys (online payment of invoices untested against the real API), SMTP credentials (reminder e-mails queue but are not delivered until set), GRA e-VAT requirements (A4), DPC registration number (later).
 

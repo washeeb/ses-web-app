@@ -403,6 +403,8 @@ export const invoices = pgTable(
     number: text("number").notNull().unique(),
     customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
     orderId: uuid("order_id").references(() => orders.id),
+    /** Set on renewal invoices. */
+    subscriptionId: uuid("subscription_id"),
     /** issued | part_paid | paid | void */
     status: text("status").notNull().default("issued"),
     currency: text("currency").notNull().references(() => currencies.code),
@@ -814,4 +816,210 @@ export const notifications = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index().on(t.userId, t.readAt)],
+);
+
+// ───────────────────────────── Subscriptions & service contracts ─────────────────────────────
+
+/** Recurring products (variants with a billing period). Renewal: T-notice → renewal invoice → paid = renewed, unpaid past grace = lapsed. */
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    variantId: uuid("variant_id").references(() => productVariants.id),
+    description: text("description").notNull(),
+    quantity: integer("quantity").notNull(),
+    unitPriceMinor: money("unit_price_minor").notNull(),
+    currency: text("currency").notNull().references(() => currencies.code),
+    taxable: boolean("taxable").notNull().default(true),
+    /** month | year */
+    billingPeriod: text("billing_period").notNull(),
+    /** active | ended | lapsed | cancelled */
+    status: text("status").notNull().default("active"),
+    autoRenew: boolean("auto_renew").notNull().default(true),
+    currentPeriodStart: ts("current_period_start").notNull(),
+    currentPeriodEnd: ts("current_period_end").notNull(),
+    /** Open renewal invoice for the next period, if issued. */
+    renewalInvoiceId: uuid("renewal_invoice_id"),
+    sourceOrderId: uuid("source_order_id").references(() => orders.id),
+    sourceOrderLineId: uuid("source_order_line_id").references(() => orderLines.id),
+    endedAt: ts("ended_at"),
+    endReason: text("end_reason"),
+    createdBy: uuid("created_by").references(() => users.id),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index().on(t.customerOrgId), index().on(t.status, t.currentPeriodEnd), check("subscription_qty_positive", sql`${t.quantity} > 0`)],
+);
+
+export type SlaTargets = Record<"urgent" | "high" | "normal" | "low", { responseMinutes: number; resolutionMinutes: number }>;
+
+/** Support terms for a customer: coverage hours and response/resolution targets per priority. */
+export const serviceContracts = pgTable(
+  "service_contracts",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    name: text("name").notNull(),
+    /** business_hours (Mon–Fri 08:00–17:00 Accra) | 24x7 */
+    coverage: text("coverage").notNull().default("business_hours"),
+    slaTargets: jsonb("sla_targets").$type<SlaTargets>().notNull(),
+    startsAt: ts("starts_at").notNull(),
+    endsAt: ts("ends_at").notNull(),
+    /** active | cancelled (expiry is derived from ends_at) */
+    status: text("status").notNull().default("active"),
+    notes: text("notes"),
+    createdBy: uuid("created_by").references(() => users.id),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index().on(t.customerOrgId), check("contract_dates", sql`${t.endsAt} > ${t.startsAt}`)],
+);
+
+// ───────────────────────────── Assets ─────────────────────────────
+
+/** Installed base: equipment SES supplied or supports for a customer. */
+export const assets = pgTable(
+  "assets",
+  {
+    id: id(),
+    tag: text("tag").notNull().unique(),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    variantId: uuid("variant_id").references(() => productVariants.id),
+    name: text("name").notNull(),
+    serialNumber: text("serial_number"),
+    location: text("location"),
+    /** active | in_repair | retired */
+    status: text("status").notNull().default("active"),
+    orderId: uuid("order_id").references(() => orders.id),
+    orderLineId: uuid("order_line_id").references(() => orderLines.id),
+    contractId: uuid("contract_id").references(() => serviceContracts.id),
+    installedAt: ts("installed_at"),
+    notes: text("notes"),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index().on(t.customerOrgId), index().on(t.serialNumber)],
+);
+
+// ───────────────────────────── Support tickets ─────────────────────────────
+
+export const tickets = pgTable(
+  "tickets",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    contractId: uuid("contract_id").references(() => serviceContracts.id),
+    assetId: uuid("asset_id").references(() => assets.id),
+    subject: text("subject").notNull(),
+    /** low | normal | high | urgent */
+    priority: text("priority").notNull().default("normal"),
+    category: text("category").notNull().default("general"),
+    /** new | open | pending_customer | resolved | closed */
+    status: text("status").notNull().default("new"),
+    /** 1 = first line, 2 = second line, 3 = engineering */
+    level: integer("level").notNull().default(1),
+    coverage: text("coverage").notNull(),
+    requesterUserId: uuid("requester_user_id").notNull().references(() => users.id),
+    assigneeUserId: uuid("assignee_user_id").references(() => users.id),
+    responseDueAt: ts("response_due_at").notNull(),
+    resolutionDueAt: ts("resolution_due_at").notNull(),
+    firstRespondedAt: ts("first_responded_at"),
+    responseBreached: boolean("response_breached").notNull().default(false),
+    resolutionBreached: boolean("resolution_breached").notNull().default(false),
+    /** Set while waiting on the customer: the resolution clock is paused. */
+    pausedAt: ts("paused_at"),
+    resolvedAt: ts("resolved_at"),
+    closedAt: ts("closed_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index().on(t.customerOrgId), index().on(t.status), check("ticket_level_range", sql`${t.level} BETWEEN 1 AND 3`)],
+);
+
+export const ticketMessages = pgTable(
+  "ticket_messages",
+  {
+    id: id(),
+    ticketId: uuid("ticket_id").notNull().references(() => tickets.id),
+    authorUserId: uuid("author_user_id").references(() => users.id),
+    body: text("body").notNull(),
+    /** Internal notes are never shown to the customer. */
+    internal: boolean("internal").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.ticketId, t.createdAt)],
+);
+
+// ───────────────────────────── Projects ─────────────────────────────
+
+export const projects = pgTable(
+  "projects",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    /** null for internal projects */
+    customerOrgId: uuid("customer_org_id").references(() => organizations.id),
+    orderId: uuid("order_id").references(() => orders.id),
+    name: text("name").notNull(),
+    description: text("description"),
+    /** planning | active | on_hold | completed | cancelled */
+    status: text("status").notNull().default("planning"),
+    managerUserId: uuid("manager_user_id").notNull().references(() => users.id),
+    startDate: ts("start_date"),
+    dueDate: ts("due_date"),
+    completedAt: ts("completed_at"),
+    createdBy: uuid("created_by").notNull().references(() => users.id),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index().on(t.customerOrgId), index().on(t.status)],
+);
+
+export const projectMilestones = pgTable(
+  "project_milestones",
+  {
+    id: id(),
+    projectId: uuid("project_id").notNull().references(() => projects.id),
+    name: text("name").notNull(),
+    dueDate: ts("due_date"),
+    /** open | awaiting_signoff | signed_off */
+    status: text("status").notNull().default("open"),
+    signoffRequestedBy: uuid("signoff_requested_by").references(() => users.id),
+    signoffRequestedAt: ts("signoff_requested_at"),
+    signedOffBy: uuid("signed_off_by").references(() => users.id),
+    signedOffAt: ts("signed_off_at"),
+    /** Last sign-off decision note (approval comment or reason for rejection). */
+    signoffNote: text("signoff_note"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index().on(t.projectId),
+    check("milestone_no_self_signoff", sql`${t.signedOffBy} IS NULL OR ${t.signoffRequestedBy} IS NULL OR ${t.signedOffBy} <> ${t.signoffRequestedBy}`),
+  ],
+);
+
+export const projectTasks = pgTable(
+  "project_tasks",
+  {
+    id: id(),
+    projectId: uuid("project_id").notNull().references(() => projects.id),
+    milestoneId: uuid("milestone_id").references(() => projectMilestones.id),
+    title: text("title").notNull(),
+    /** todo | in_progress | done */
+    status: text("status").notNull().default("todo"),
+    assigneeUserId: uuid("assignee_user_id").references(() => users.id),
+    dueDate: ts("due_date"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index().on(t.projectId)],
 );

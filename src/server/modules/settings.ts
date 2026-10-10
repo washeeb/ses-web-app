@@ -34,6 +34,12 @@ export const settingsSchema = z.object({
   companyTin: z.string().trim().max(40),
   /** Bank / mobile money details printed on invoices. */
   paymentInstructions: z.string().trim().max(1000),
+  /** Renewal invoices are issued this many days before a subscription period ends. */
+  renewalNoticeDays: z.number().int().min(1).max(90),
+  /** Unpaid renewals lapse this many days after the period ends. */
+  renewalGraceDays: z.number().int().min(0).max(60),
+  /** Resolved tickets close automatically after this many days without a customer reply. */
+  ticketAutoCloseDays: z.number().int().min(1).max(60),
   supportEmail: z.string().email(),
   supportPhone: z.string().max(40),
   /** Data Protection Commission (Ghana) registration — shown publicly once set. */
@@ -60,6 +66,9 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   companyAddress: "Accra, Ghana",
   companyTin: "",
   paymentInstructions: "",
+  renewalNoticeDays: 30,
+  renewalGraceDays: 14,
+  ticketAutoCloseDays: 7,
   supportEmail: "support@synclyticsenterprisesystems.com",
   supportPhone: "+233 00 000 0000",
   dpcRegistrationNumber: "",

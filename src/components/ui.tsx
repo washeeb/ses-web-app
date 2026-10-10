@@ -56,6 +56,8 @@ const STATUS_TONE: Record<string, Tone> = {
   simulator: "purple", production: "teal",
   partially_received: "amber", initialized: "blue", success: "green", amount_mismatch: "red", abandoned: "gray",
   issued: "blue", part_paid: "amber", paid: "green", unpaid: "amber", void: "gray", reversed: "gray", overdue: "red",
+  ended: "gray", lapsed: "red", scheduled: "blue", open: "blue", pending_customer: "amber", resolved: "green", closed: "gray",
+  planning: "purple", on_hold: "amber", completed: "green", todo: "gray", in_progress: "blue", awaiting_signoff: "amber", signed_off: "green", in_repair: "amber",
 };
 
 export function StatusBadge({ status }: { status: string }) {

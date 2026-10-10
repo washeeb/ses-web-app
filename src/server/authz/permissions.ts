@@ -46,6 +46,8 @@ export const PERMISSIONS = {
   "procurement.receive": op("Receive goods into stock"),
   "documents.read": op("View attached documents"),
   "documents.write": op("Upload and remove documents"),
+  "subscriptions.manage": op("Manage subscriptions and service contracts"),
+  "assets.manage": op("Register and update customer assets"),
   "projects.read": op("View projects"),
   "projects.write": op("Manage projects"),
   "support.read": op("View support tickets"),
@@ -76,6 +78,13 @@ export const PERMISSIONS = {
   "customer.invoices.read": cu("View own invoices and payments"),
   "customer.documents.read": cu("Download documents shared by SES"),
   "customer.returns.request": cu("Request returns and warranty claims"),
+  "customer.subscriptions.read": cu("View own subscriptions and service contracts"),
+  "customer.subscriptions.manage": cu("Turn subscription auto-renewal on or off"),
+  "customer.tickets.read": cu("View own support tickets"),
+  "customer.tickets.write": cu("Raise and reply to support tickets"),
+  "customer.projects.read": cu("View own projects"),
+  "customer.projects.signoff": cu("Sign off project milestones"),
+  "customer.assets.read": cu("View own registered equipment"),
   "customer.users.manage": cu("Manage own customer users", true),
 } as const satisfies Record<string, PermissionDef>;
 
