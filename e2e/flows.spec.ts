@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signIn } from "./helpers";
+import { STATE } from "./auth.setup";
 
 test("visitor can send an enquiry and gets a reference", async ({ page }) => {
   await page.goto("/contact");
@@ -19,14 +20,17 @@ test("keyboard users can reach the main content and navigation", async ({ page }
   await expect(page).toHaveURL(/#main$/);
 });
 
-test("sales officer sees only their modules; admin URLs are refused", async ({ page }) => {
-  await signIn(page, "sales@ses.demo");
+test.describe("sales officer", () => {
+  test.use({ storageState: STATE.sales });
+  test("sees only their modules; admin URLs are refused", async ({ page }) => {
+  await page.goto("/ops");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Welcome");
   const nav = page.getByRole("navigation", { name: "Operations" });
   await expect(nav.getByRole("link", { name: "Quotations" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Audit log" })).toHaveCount(0);
   await page.goto("/ops/audit");
   await expect(page.getByText("You can't open this page")).toBeVisible();
+  });
 });
 
 test("customer sees the seeded quotation and cannot reach operations", async ({ page }) => {

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { expectAccessible, signIn, watchCsp } from "./helpers";
+import { expectAccessible, watchCsp } from "./helpers";
+import { STATE } from "./auth.setup";
 
 const PUBLIC = ["/", "/services", "/store", "/store/business-laptop-14", "/partners", "/case-studies", "/contact", "/privacy", "/login", "/forgot-password"];
 
@@ -16,7 +17,7 @@ test.describe("public pages", () => {
 });
 
 test.describe("staff pages (sales officer)", () => {
-  test.beforeEach(async ({ page }) => signIn(page, "sales@ses.demo"));
+  test.use({ storageState: STATE.sales });
   for (const path of ["/ops", "/ops/leads", "/ops/quotes", "/ops/quotes/new", "/ops/orders", "/ops/catalogue", "/ops/returns", "/ops/notifications", "/ops/departments"]) {
     test(`${path} is accessible`, async ({ page }) => {
       const csp = watchCsp(page);
@@ -29,7 +30,7 @@ test.describe("staff pages (sales officer)", () => {
 });
 
 test.describe("customer pages", () => {
-  test.beforeEach(async ({ page }) => signIn(page, "buyer@customer-a.demo"));
+  test.use({ storageState: STATE.customer });
   for (const path of ["/portal", "/portal/returns", "/portal/notifications"]) {
     test(`${path} is accessible`, async ({ page }) => {
       await page.goto(path);
