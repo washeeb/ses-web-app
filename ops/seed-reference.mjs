@@ -817,11 +817,11 @@ var require_binaryParsers = __commonJS({
         var array2 = [];
         var i2;
         if (dimension.length > 1) {
-          var count = dimension.shift();
-          for (i2 = 0; i2 < count; i2++) {
+          var count2 = dimension.shift();
+          for (i2 = 0; i2 < count2; i2++) {
             array2[i2] = parse4(dimension, elementType2);
           }
-          dimension.unshift(count);
+          dimension.unshift(count2);
         } else {
           for (i2 = 0; i2 < dimension[0]; i2++) {
             array2[i2] = parseElement(elementType2);
@@ -8692,6 +8692,16 @@ function ilike(column, value) {
 function notIlike(column, value) {
   return sql`${column} not ilike ${value}`;
 }
+function arrayContains(column, values) {
+  if (Array.isArray(values)) {
+    if (values.length === 0) {
+      throw new Error("arrayContains requires at least one value");
+    }
+    const array2 = sql`${bindIfParam(values, column)}`;
+    return sql`${column} @> ${array2}`;
+  }
+  return sql`${column} @> ${bindIfParam(values, column)}`;
+}
 
 // node_modules/drizzle-orm/sql/expressions/select.js
 function asc(column) {
@@ -12522,6 +12532,7 @@ __export(schema_exports, {
   jobs: () => jobs,
   leads: () => leads,
   mailOutbox: () => mailOutbox,
+  notifications: () => notifications,
   orderLines: () => orderLines,
   orders: () => orders,
   orgType: () => orgType,
@@ -12538,6 +12549,8 @@ __export(schema_exports, {
   quoteLines: () => quoteLines,
   quotes: () => quotes,
   rateLimits: () => rateLimits,
+  returnLines: () => returnLines,
+  returnRequests: () => returnRequests,
   roleAssignments: () => roleAssignments,
   sequences: () => sequences,
   sessions: () => sessions,
@@ -12548,7 +12561,8 @@ __export(schema_exports, {
   stockReservations: () => stockReservations,
   suppliers: () => suppliers,
   taxRates: () => taxRates,
-  users: () => users
+  users: () => users,
+  warranties: () => warranties
 });
 import { randomUUID } from "node:crypto";
 var id = () => uuid("id").primaryKey().$defaultFn(() => randomUUID());
@@ -12755,6 +12769,8 @@ var productVariants = pgTable(
     /** physical items need stock; services and licences do not */
     tracksStock: boolean("tracks_stock").notNull().default(true),
     billingPeriod: text("billing_period"),
+    /** Manufacturer/SES warranty from the fulfilment date; 0 = none. */
+    warrantyMonths: integer("warranty_months").notNull().default(0),
     active: boolean("active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt()
@@ -12868,6 +12884,7 @@ var orders = pgTable("orders", {
   totalMinor: money("total_minor").notNull(),
   createdBy: uuid("created_by").references(() => users.id),
   paymentStatus: text("payment_status").notNull().default("unpaid"),
+  fulfilledAt: ts("fulfilled_at"),
   paidAt: ts("paid_at"),
   isDemo: boolean("is_demo").notNull().default(false),
   createdAt: createdAt(),
@@ -13130,6 +13147,69 @@ var documents = pgTable(
   },
   (t) => [index().on(t.entityType, t.entityId)]
 );
+var warranties = pgTable(
+  "warranties",
+  {
+    id: id(),
+    orderId: uuid("order_id").notNull().references(() => orders.id),
+    orderLineId: uuid("order_line_id").notNull().references(() => orderLines.id),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id),
+    quantity: integer("quantity").notNull(),
+    startsAt: ts("starts_at").notNull(),
+    endsAt: ts("ends_at").notNull(),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.customerOrgId)]
+);
+var returnRequests = pgTable(
+  "return_requests",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    orderId: uuid("order_id").notNull().references(() => orders.id),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    /** return (change of mind / wrong item, within the return window) | warranty (fault under warranty) */
+    kind: text("kind").notNull(),
+    /** refund | replacement | repair */
+    resolution: text("resolution").notNull(),
+    reason: text("reason").notNull(),
+    /** requested | approved | rejected | received | refund_pending | completed | cancelled */
+    status: text("status").notNull().default("requested"),
+    requestedBy: uuid("requested_by").notNull().references(() => users.id),
+    decidedBy: uuid("decided_by").references(() => users.id),
+    decisionNote: text("decision_note"),
+    receivedBy: uuid("received_by").references(() => users.id),
+    receivedAt: ts("received_at"),
+    restocked: boolean("restocked").notNull().default(false),
+    refundMinor: money("refund_minor"),
+    completedAt: ts("completed_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [index().on(t.customerOrgId), index().on(t.status)]
+);
+var returnLines = pgTable("return_lines", {
+  id: id(),
+  returnId: uuid("return_id").notNull().references(() => returnRequests.id),
+  orderLineId: uuid("order_line_id").notNull().references(() => orderLines.id),
+  variantId: uuid("variant_id").references(() => productVariants.id),
+  quantity: integer("quantity").notNull()
+});
+var notifications = pgTable(
+  "notifications",
+  {
+    id: id(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    title: text("title").notNull(),
+    body: text("body"),
+    /** Relative link inside the app. */
+    link: text("link"),
+    readAt: ts("read_at"),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.userId, t.readAt)]
+);
 
 // src/server/db/client.ts
 function createDb(url2) {
@@ -13173,6 +13253,9 @@ var PERMISSIONS = {
   "quotes.approve": op("Approve quotations above limits", true),
   "orders.read": op("View orders"),
   "orders.write": op("Confirm, fulfil and cancel orders"),
+  "returns.manage": op("Approve, receive and resolve returns and warranty claims"),
+  "refunds.approve": op("Approve refunds", true),
+  "data.export": op("Export data to CSV"),
   // Department modules (screens arrive in later milestones)
   "finance.read": op("View finance records"),
   "finance.write": op("Manage invoices and payments", true),
@@ -13209,6 +13292,7 @@ var PERMISSIONS = {
   "customer.orders.read": cu("View own orders"),
   "customer.orders.pay": cu("Pay own orders online"),
   "customer.documents.read": cu("Download documents shared by SES"),
+  "customer.returns.request": cu("Request returns and warranty claims"),
   "customer.users.manage": cu("Manage own customer users", true)
 };
 var ALL_PERMISSIONS = Object.keys(PERMISSIONS);
@@ -13236,42 +13320,42 @@ var ROLE_TEMPLATES = [
     name: "Executive",
     domain: "operator",
     description: "Read access across the business and approval of high-value quotations.",
-    permissions: [...READ_CORE, "approvals.read", "quotes.approve", "finance.read", "reports.read", "integrations.read", "projects.read", "support.read", "procurement.read", "procurement.approve", "documents.read"]
+    permissions: [...READ_CORE, "approvals.read", "quotes.approve", "finance.read", "reports.read", "integrations.read", "projects.read", "support.read", "procurement.read", "procurement.approve", "documents.read", "refunds.approve", "data.export"]
   },
   {
     key: "department_manager",
     name: "Department Manager",
     domain: "operator",
     description: "Manages a department's records; usually assigned with a department scope.",
-    permissions: [...READ_CORE, "leads.write", "quotes.write", "approvals.read", "reports.read", "users.read", "documents.read", "documents.write"]
+    permissions: [...READ_CORE, "leads.write", "quotes.write", "approvals.read", "reports.read", "users.read", "documents.read", "documents.write", "returns.manage", "data.export"]
   },
   {
     key: "finance_officer",
     name: "Finance Officer",
     domain: "operator",
     description: "Finance records, quotation approval and price approvals.",
-    permissions: [...READ_CORE, "finance.read", "finance.write", "approvals.read", "quotes.approve", "catalogue.price.approve", "reports.read", "procurement.read", "procurement.approve", "documents.read"]
+    permissions: [...READ_CORE, "finance.read", "finance.write", "approvals.read", "quotes.approve", "catalogue.price.approve", "reports.read", "procurement.read", "procurement.approve", "documents.read", "refunds.approve", "data.export"]
   },
   {
     key: "sales_officer",
     name: "Sales Officer",
     domain: "operator",
     description: "Leads, quotations and orders.",
-    permissions: [...READ_CORE, "leads.write", "quotes.write", "orders.write", "documents.read", "documents.write"]
+    permissions: [...READ_CORE, "leads.write", "quotes.write", "orders.write", "documents.read", "documents.write", "returns.manage", "data.export"]
   },
   {
     key: "procurement_officer",
     name: "Procurement Officer",
     domain: "operator",
     description: "Suppliers, purchase orders and catalogue maintenance.",
-    permissions: [...READ_CORE, "procurement.read", "procurement.write", "procurement.receive", "catalogue.write", "integrations.read", "documents.read", "documents.write"]
+    permissions: [...READ_CORE, "procurement.read", "procurement.write", "procurement.receive", "catalogue.write", "integrations.read", "documents.read", "documents.write", "data.export"]
   },
   {
     key: "warehouse_officer",
     name: "Warehouse Officer",
     domain: "operator",
     description: "Stock levels and order fulfilment.",
-    permissions: ["catalogue.read", "inventory.read", "inventory.adjust", "orders.read", "orders.write", "procurement.read", "procurement.receive", "documents.read"]
+    permissions: ["catalogue.read", "inventory.read", "inventory.adjust", "orders.read", "orders.write", "procurement.read", "procurement.receive", "documents.read", "returns.manage", "data.export"]
   },
   {
     key: "engineer",
@@ -13292,7 +13376,7 @@ var ROLE_TEMPLATES = [
     name: "Support Agent",
     domain: "operator",
     description: "Customer support and managed services.",
-    permissions: ["support.read", "support.write", "orders.read", "catalogue.read", "documents.read"]
+    permissions: ["support.read", "support.write", "orders.read", "catalogue.read", "documents.read", "returns.manage"]
   },
   {
     key: "hr_officer",
@@ -13313,7 +13397,7 @@ var ROLE_TEMPLATES = [
     name: "Read-only Auditor",
     domain: "operator",
     description: "Read-only access including the audit log. Cannot change anything.",
-    permissions: [...READ_CORE, "audit.read", "approvals.read", "finance.read", "integrations.read", "reports.read", "users.read", "procurement.read", "documents.read"]
+    permissions: [...READ_CORE, "audit.read", "approvals.read", "finance.read", "integrations.read", "reports.read", "users.read", "procurement.read", "documents.read", "data.export"]
   },
   {
     key: "partner_admin",
@@ -13341,7 +13425,7 @@ var ROLE_TEMPLATES = [
     name: "Customer User",
     domain: "customer",
     description: "Views quotations and orders.",
-    permissions: ["customer.quotes.read", "customer.orders.read", "customer.documents.read"]
+    permissions: ["customer.quotes.read", "customer.orders.read", "customer.documents.read", "customer.returns.request"]
   }
 ];
 
@@ -14592,14 +14676,14 @@ function codePointLength(str) {
   const units = str.length;
   if (!highSurrogate.test(str))
     return units;
-  let count = units;
+  let count2 = units;
   for (let i = 0; i < units - 1; i++) {
     if ((str.charCodeAt(i) & 64512) === 55296 && (str.charCodeAt(i + 1) & 64512) === 56320) {
-      count--;
+      count2--;
       i++;
     }
   }
-  return count;
+  return count2;
 }
 function getLengthableOrigin(input2) {
   if (Array.isArray(input2))
@@ -18954,8 +19038,8 @@ function az_default() {
 }
 
 // node_modules/zod/v4/locales/be.js
-function getBelarusianPlural(count, one, few, many) {
-  const absCount = Math.abs(count);
+function getBelarusianPlural(count2, one, few, many) {
+  const absCount = Math.abs(count2);
   const lastDigit = absCount % 10;
   const lastTwoDigits = absCount % 100;
   if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
@@ -21602,8 +21686,8 @@ function hu_default() {
 }
 
 // node_modules/zod/v4/locales/hy.js
-function getArmenianPlural(count, one, many) {
-  return Math.abs(count) === 1 ? one : many;
+function getArmenianPlural(count2, one, many) {
+  return Math.abs(count2) === 1 ? one : many;
 }
 function withDefiniteArticle(word) {
   if (!word)
@@ -24341,8 +24425,8 @@ function ro_default() {
 }
 
 // node_modules/zod/v4/locales/ru.js
-function getRussianPlural(count, one, few, many) {
-  const absCount = Math.abs(count);
+function getRussianPlural(count2, one, few, many) {
+  const absCount = Math.abs(count2);
   const lastDigit = absCount % 10;
   const lastTwoDigits = absCount % 100;
   if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
@@ -34916,6 +35000,8 @@ var settingsSchema = external_exports.object({
   /** Manual price changes at or above this need approval (basis points of the old price). */
   sensitivePriceChangeBp: external_exports.number().int().min(0).max(1e5),
   quoteValidityDays: external_exports.number().int().min(1).max(365),
+  /** Days after fulfilment during which non-warranty returns may be requested. */
+  returnWindowDays: external_exports.number().int().min(0).max(365),
   /** How long stock is held for an accepted quotation awaiting confirmation. */
   reservationHoldHours: external_exports.number().int().min(1).max(24 * 30),
   supportEmail: external_exports.string().email(),
@@ -34939,6 +35025,7 @@ var DEFAULT_SETTINGS = {
   sensitivePriceChangeBp: 1500,
   // 15%
   quoteValidityDays: 30,
+  returnWindowDays: 14,
   reservationHoldHours: 72,
   supportEmail: "support@synclyticsenterprisesystems.com",
   supportPhone: "+233 00 000 0000",
@@ -34973,6 +35060,55 @@ async function nextNumber(db2, prefix, now = /* @__PURE__ */ new Date()) {
   const [row] = await db2.insert(sequences).values({ key, value: 1 }).onConflictDoUpdate({ target: sequences.key, set: { value: sql`${sequences.value} + 1` } }).returning();
   return `${key}-${String(row.value).padStart(5, "0")}`;
 }
+
+// src/server/modules/approval-types.ts
+var APPROVAL_TYPES = {
+  "quote.approval": { label: "Quotation", permission: "quotes.approve", link: (id2) => `/ops/quotes/${id2}` },
+  "price.change": { label: "Price change", permission: "catalogue.price.approve" },
+  "permission.change": { label: "Permission change", permission: "permissions.manage" },
+  "po.approval": { label: "Purchase order", permission: "procurement.approve", link: (id2) => `/ops/procurement/${id2}` },
+  "refund": { label: "Refund", permission: "refunds.approve", link: (id2) => `/ops/returns/${id2}` }
+};
+
+// src/server/modules/notifications.ts
+async function notifyUsers(db2, userIds, n) {
+  const unique2 = [...new Set(userIds)];
+  if (unique2.length === 0) return 0;
+  await db2.insert(notifications).values(unique2.map((userId) => ({ userId, title: n.title.slice(0, 200), body: n.body?.slice(0, 1e3) ?? null, link: n.link ?? null })));
+  return unique2.length;
+}
+async function usersWithPermission(db2, perm, organizationId) {
+  const domain2 = PERMISSIONS[perm].domain;
+  const conds = [arrayContains(permissionSets.permissions, [perm]), eq(organizations.type, domain2), eq(organizations.status, "active"), eq(users.status, "active")];
+  if (organizationId) conds.push(eq(roleAssignments.organizationId, organizationId));
+  const rows = await db2.selectDistinct({ id: users.id }).from(roleAssignments).innerJoin(permissionSets, eq(permissionSets.id, roleAssignments.permissionSetId)).innerJoin(organizations, eq(organizations.id, roleAssignments.organizationId)).innerJoin(users, eq(users.id, roleAssignments.userId)).where(and(...conds));
+  return rows.map((r) => r.id);
+}
+async function notifyPermission(db2, perm, n, opts = {}) {
+  const ids = (await usersWithPermission(db2, perm, opts.organizationId)).filter((id2) => id2 !== opts.exclude);
+  return notifyUsers(db2, ids, n);
+}
+async function notifyApprovers(db2, type, subjectId, summary, requestedBy) {
+  const t = APPROVAL_TYPES[type];
+  if (!t) return 0;
+  return notifyPermission(db2, t.permission, { title: `${t.label} awaiting your approval`, body: summary, link: "/ops/approvals" }, { exclude: requestedBy });
+}
+function announce() {
+  publish({ topic: "notifications" });
+}
+async function customerRecipients(db2, perm, organizationId, exclude) {
+  const ids = await usersWithPermission(db2, perm, organizationId);
+  return exclude ? ids.filter((i) => i !== exclude) : ids;
+}
+
+// src/server/modules/returns.ts
+var returnInput = external_exports.object({
+  orderId: external_exports.string().uuid(),
+  kind: external_exports.enum(["return", "warranty"]),
+  resolution: external_exports.enum(["refund", "replacement", "repair"]),
+  reason: external_exports.string().trim().min(10, "Describe the problem (at least 10 characters).").max(2e3),
+  lines: external_exports.array(external_exports.object({ orderLineId: external_exports.string().uuid(), quantity: external_exports.number().int().min(0) })).min(1)
+});
 
 // src/server/modules/sales.ts
 var enquiryInput = external_exports.object({
@@ -35079,6 +35215,7 @@ async function submitQuote(db2, actor, id2) {
         requestedBy: actor.userId
       });
       await audit(tx, { actor, action: "quote.submitted_for_approval", targetType: "quote", targetId: id2, data: { reasons } });
+      await notifyApprovers(tx, "quote.approval", id2, `Quotation ${q.number}: ${reasons.join("; ")}`, actor.userId);
       return "pending_approval";
     }
     await tx.update(quotes).set({ status: "approved", approvedAt: /* @__PURE__ */ new Date() }).where(eq(quotes.id, id2));
@@ -35095,9 +35232,15 @@ async function sendQuote(db2, actor, id2) {
     if (q2.status !== "approved") throw conflict("Only approved quotations can be sent.");
     await tx.update(quotes).set({ status: "sent", sentAt: /* @__PURE__ */ new Date() }).where(eq(quotes.id, id2));
     await audit(tx, { actor, action: "quote.sent", targetType: "quote", targetId: id2 });
+    await notifyUsers(tx, await customerRecipients(tx, "customer.quotes.read", q2.customerOrgId), {
+      title: `New quotation ${q2.number}`,
+      body: "Review and accept it in your portal.",
+      link: `/portal/quotes/${id2}`
+    });
     return q2;
   });
   publish({ topic: "quotes", orgIds: [q.customerOrgId] });
+  announce();
 }
 
 // src/server/db/seed.ts

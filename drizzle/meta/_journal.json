@@ -15,6 +15,13 @@
       "when": 1791649088445,
       "tag": "0001_procurement_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791651675263,
+      "tag": "0002_aftersales_notifications",
+      "breakpoints": true
     }
   ]
 }

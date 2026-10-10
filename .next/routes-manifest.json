@@ -16,7 +16,7 @@
   ],
   "headers": [
     {
-      "source": "/((?!api/documents/).*)",
+      "source": "/:path*",
       "headers": [
         {
           "key": "X-Frame-Options",
@@ -33,41 +33,27 @@
         {
           "key": "Permissions-Policy",
           "value": "camera=(), microphone=(), geolocation=(), payment=()"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://checkout.paystack.com"
         },
         {
           "key": "Strict-Transport-Security",
           "value": "max-age=63072000; includeSubDomains"
         }
       ],
-      "regex": "^(?:/((?!api/documents/).*))(?:/)?$"
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
+    },
+    {
+      "source": "/api/:path*",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'none'; frame-ancestors 'none'"
+        }
+      ],
+      "regex": "^/api(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
     },
     {
       "source": "/api/documents/:path*",
       "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        },
-        {
-          "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=(), payment=()"
-        },
-        {
-          "key": "Strict-Transport-Security",
-          "value": "max-age=63072000; includeSubDomains"
-        },
         {
           "key": "Content-Security-Policy",
           "value": "default-src 'none'; sandbox; frame-ancestors 'none'"
@@ -90,6 +76,14 @@
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/api/documents/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/api/exports/[kind]",
+      "regex": "^/api/exports/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPkind": "nxtPkind"
+      },
+      "namedRegex": "^/api/exports/(?<nxtPkind>[^/]+?)(?:/)?$"
     },
     {
       "page": "/api/v1/integrations/[connectionId]/events",
@@ -140,6 +134,14 @@
       "namedRegex": "^/ops/quotes/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/ops/returns/[id]",
+      "regex": "^/ops/returns/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/returns/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/portal/orders/[id]",
       "regex": "^/portal/orders/([^/]+?)(?:/)?$",
       "routeKeys": {
@@ -148,12 +150,28 @@
       "namedRegex": "^/portal/orders/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/portal/orders/[id]/return",
+      "regex": "^/portal/orders/([^/]+?)/return(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/portal/orders/(?<nxtPid>[^/]+?)/return(?:/)?$"
+    },
+    {
       "page": "/portal/quotes/[id]",
       "regex": "^/portal/quotes/([^/]+?)(?:/)?$",
       "routeKeys": {
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/portal/quotes/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/portal/returns/[id]",
+      "regex": "^/portal/returns/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/portal/returns/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
       "page": "/store/[slug]",
@@ -328,6 +346,12 @@
       "namedRegex": "^/ops/catalogue(?:/)?$"
     },
     {
+      "page": "/ops/catalogue/import",
+      "regex": "^/ops/catalogue/import(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/catalogue/import(?:/)?$"
+    },
+    {
       "page": "/ops/catalogue/new",
       "regex": "^/ops/catalogue/new(?:/)?$",
       "routeKeys": {},
@@ -340,6 +364,12 @@
       "namedRegex": "^/ops/departments(?:/)?$"
     },
     {
+      "page": "/ops/exports",
+      "regex": "^/ops/exports(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/exports(?:/)?$"
+    },
+    {
       "page": "/ops/integrations",
       "regex": "^/ops/integrations(?:/)?$",
       "routeKeys": {},
@@ -350,6 +380,12 @@
       "regex": "^/ops/leads(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/ops/leads(?:/)?$"
+    },
+    {
+      "page": "/ops/notifications",
+      "regex": "^/ops/notifications(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/notifications(?:/)?$"
     },
     {
       "page": "/ops/orders",
@@ -388,10 +424,22 @@
       "namedRegex": "^/ops/quotes/new(?:/)?$"
     },
     {
+      "page": "/ops/returns",
+      "regex": "^/ops/returns(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/returns(?:/)?$"
+    },
+    {
       "page": "/partner",
       "regex": "^/partner(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/partner(?:/)?$"
+    },
+    {
+      "page": "/partner/notifications",
+      "regex": "^/partner/notifications(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/partner/notifications(?:/)?$"
     },
     {
       "page": "/partners",
@@ -404,6 +452,18 @@
       "regex": "^/portal(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/portal(?:/)?$"
+    },
+    {
+      "page": "/portal/notifications",
+      "regex": "^/portal/notifications(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/portal/notifications(?:/)?$"
+    },
+    {
+      "page": "/portal/returns",
+      "regex": "^/portal/returns(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/portal/returns(?:/)?$"
     },
     {
       "page": "/privacy",

@@ -12522,6 +12522,7 @@ __export(schema_exports, {
   jobs: () => jobs,
   leads: () => leads,
   mailOutbox: () => mailOutbox,
+  notifications: () => notifications,
   orderLines: () => orderLines,
   orders: () => orders,
   orgType: () => orgType,
@@ -12538,6 +12539,8 @@ __export(schema_exports, {
   quoteLines: () => quoteLines,
   quotes: () => quotes,
   rateLimits: () => rateLimits,
+  returnLines: () => returnLines,
+  returnRequests: () => returnRequests,
   roleAssignments: () => roleAssignments,
   sequences: () => sequences,
   sessions: () => sessions,
@@ -12548,7 +12551,8 @@ __export(schema_exports, {
   stockReservations: () => stockReservations,
   suppliers: () => suppliers,
   taxRates: () => taxRates,
-  users: () => users
+  users: () => users,
+  warranties: () => warranties
 });
 import { randomUUID } from "node:crypto";
 var id = () => uuid("id").primaryKey().$defaultFn(() => randomUUID());
@@ -12755,6 +12759,8 @@ var productVariants = pgTable(
     /** physical items need stock; services and licences do not */
     tracksStock: boolean("tracks_stock").notNull().default(true),
     billingPeriod: text("billing_period"),
+    /** Manufacturer/SES warranty from the fulfilment date; 0 = none. */
+    warrantyMonths: integer("warranty_months").notNull().default(0),
     active: boolean("active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt()
@@ -12868,6 +12874,7 @@ var orders = pgTable("orders", {
   totalMinor: money("total_minor").notNull(),
   createdBy: uuid("created_by").references(() => users.id),
   paymentStatus: text("payment_status").notNull().default("unpaid"),
+  fulfilledAt: ts("fulfilled_at"),
   paidAt: ts("paid_at"),
   isDemo: boolean("is_demo").notNull().default(false),
   createdAt: createdAt(),
@@ -13130,6 +13137,69 @@ var documents = pgTable(
   },
   (t) => [index().on(t.entityType, t.entityId)]
 );
+var warranties = pgTable(
+  "warranties",
+  {
+    id: id(),
+    orderId: uuid("order_id").notNull().references(() => orders.id),
+    orderLineId: uuid("order_line_id").notNull().references(() => orderLines.id),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id),
+    quantity: integer("quantity").notNull(),
+    startsAt: ts("starts_at").notNull(),
+    endsAt: ts("ends_at").notNull(),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.customerOrgId)]
+);
+var returnRequests = pgTable(
+  "return_requests",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    orderId: uuid("order_id").notNull().references(() => orders.id),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    /** return (change of mind / wrong item, within the return window) | warranty (fault under warranty) */
+    kind: text("kind").notNull(),
+    /** refund | replacement | repair */
+    resolution: text("resolution").notNull(),
+    reason: text("reason").notNull(),
+    /** requested | approved | rejected | received | refund_pending | completed | cancelled */
+    status: text("status").notNull().default("requested"),
+    requestedBy: uuid("requested_by").notNull().references(() => users.id),
+    decidedBy: uuid("decided_by").references(() => users.id),
+    decisionNote: text("decision_note"),
+    receivedBy: uuid("received_by").references(() => users.id),
+    receivedAt: ts("received_at"),
+    restocked: boolean("restocked").notNull().default(false),
+    refundMinor: money("refund_minor"),
+    completedAt: ts("completed_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [index().on(t.customerOrgId), index().on(t.status)]
+);
+var returnLines = pgTable("return_lines", {
+  id: id(),
+  returnId: uuid("return_id").notNull().references(() => returnRequests.id),
+  orderLineId: uuid("order_line_id").notNull().references(() => orderLines.id),
+  variantId: uuid("variant_id").references(() => productVariants.id),
+  quantity: integer("quantity").notNull()
+});
+var notifications = pgTable(
+  "notifications",
+  {
+    id: id(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    title: text("title").notNull(),
+    body: text("body"),
+    /** Relative link inside the app. */
+    link: text("link"),
+    readAt: ts("read_at"),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.userId, t.readAt)]
+);
 
 // src/server/db/client.ts
 function createDb(url) {
@@ -13194,6 +13264,9 @@ var PERMISSIONS = {
   "quotes.approve": op("Approve quotations above limits", true),
   "orders.read": op("View orders"),
   "orders.write": op("Confirm, fulfil and cancel orders"),
+  "returns.manage": op("Approve, receive and resolve returns and warranty claims"),
+  "refunds.approve": op("Approve refunds", true),
+  "data.export": op("Export data to CSV"),
   // Department modules (screens arrive in later milestones)
   "finance.read": op("View finance records"),
   "finance.write": op("Manage invoices and payments", true),
@@ -13230,6 +13303,7 @@ var PERMISSIONS = {
   "customer.orders.read": cu("View own orders"),
   "customer.orders.pay": cu("Pay own orders online"),
   "customer.documents.read": cu("Download documents shared by SES"),
+  "customer.returns.request": cu("Request returns and warranty claims"),
   "customer.users.manage": cu("Manage own customer users", true)
 };
 var ALL_PERMISSIONS = Object.keys(PERMISSIONS);
