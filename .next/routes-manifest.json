@@ -102,12 +102,28 @@
       "namedRegex": "^/ops/catalogue/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/ops/customers/[id]",
+      "regex": "^/ops/customers/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/customers/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/ops/integrations/[id]",
       "regex": "^/ops/integrations/([^/]+?)(?:/)?$",
       "routeKeys": {
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/ops/integrations/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/ops/invoices/[id]",
+      "regex": "^/ops/invoices/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/invoices/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
       "page": "/ops/orders/[id]",
@@ -140,6 +156,14 @@
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/ops/returns/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/portal/invoices/[id]",
+      "regex": "^/portal/invoices/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/portal/invoices/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
       "page": "/portal/orders/[id]",
@@ -358,6 +382,12 @@
       "namedRegex": "^/ops/catalogue/new(?:/)?$"
     },
     {
+      "page": "/ops/customers",
+      "regex": "^/ops/customers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/customers(?:/)?$"
+    },
+    {
       "page": "/ops/departments",
       "regex": "^/ops/departments(?:/)?$",
       "routeKeys": {},
@@ -374,6 +404,12 @@
       "regex": "^/ops/integrations(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/ops/integrations(?:/)?$"
+    },
+    {
+      "page": "/ops/invoices",
+      "regex": "^/ops/invoices(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/invoices(?:/)?$"
     },
     {
       "page": "/ops/leads",
@@ -454,6 +490,12 @@
       "namedRegex": "^/portal(?:/)?$"
     },
     {
+      "page": "/portal/invoices",
+      "regex": "^/portal/invoices(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/portal/invoices(?:/)?$"
+    },
+    {
       "page": "/portal/notifications",
       "regex": "^/portal/notifications(?:/)?$",
       "routeKeys": {},
@@ -488,6 +530,12 @@
       "regex": "^/store(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/store(?:/)?$"
+    },
+    {
+      "page": "/store/cart",
+      "regex": "^/store/cart(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/store/cart(?:/)?$"
     }
   ],
   "dataRoutes": [],

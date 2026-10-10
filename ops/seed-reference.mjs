@@ -12529,6 +12529,8 @@ __export(schema_exports, {
   goodsReceipts: () => goodsReceipts,
   inboundEvents: () => inboundEvents,
   integrationConnections: () => integrationConnections,
+  invoiceLines: () => invoiceLines,
+  invoices: () => invoices,
   jobs: () => jobs,
   leads: () => leads,
   mailOutbox: () => mailOutbox,
@@ -12876,13 +12878,19 @@ var orders = pgTable("orders", {
   number: text("number").notNull().unique(),
   customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
   quoteId: uuid("quote_id").references(() => quotes.id),
+  /** quote (accepted quotation) | store (online checkout) */
+  source: text("source").notNull().default("quote"),
+  /** Customer's own purchase-order number or reference. */
+  customerReference: text("customer_reference"),
   status: text("status").notNull().default("pending"),
   currency: text("currency").notNull().references(() => currencies.code),
   subtotalMinor: money("subtotal_minor").notNull(),
   discountMinor: money("discount_minor").notNull().default(0),
   taxMinor: money("tax_minor").notNull(),
   totalMinor: money("total_minor").notNull(),
+  taxBreakdown: jsonb("tax_breakdown").$type().notNull().default([]),
   createdBy: uuid("created_by").references(() => users.id),
+  /** unpaid | part_paid | paid — mirrors the order's invoice */
   paymentStatus: text("payment_status").notNull().default("unpaid"),
   fulfilledAt: ts("fulfilled_at"),
   paidAt: ts("paid_at"),
@@ -12890,12 +12898,68 @@ var orders = pgTable("orders", {
   createdAt: createdAt(),
   updatedAt: updatedAt()
 });
+var invoices = pgTable(
+  "invoices",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    orderId: uuid("order_id").references(() => orders.id),
+    /** issued | part_paid | paid | void */
+    status: text("status").notNull().default("issued"),
+    currency: text("currency").notNull().references(() => currencies.code),
+    subtotalMinor: money("subtotal_minor").notNull(),
+    discountMinor: money("discount_minor").notNull().default(0),
+    taxMinor: money("tax_minor").notNull(),
+    totalMinor: money("total_minor").notNull(),
+    taxBreakdown: jsonb("tax_breakdown").$type().notNull().default([]),
+    paidMinor: money("paid_minor").notNull().default(0),
+    customerReference: text("customer_reference"),
+    notes: text("notes"),
+    issuedAt: ts("issued_at").notNull().defaultNow(),
+    dueAt: ts("due_at").notNull(),
+    paidAt: ts("paid_at"),
+    voidedAt: ts("voided_at"),
+    voidedBy: uuid("voided_by").references(() => users.id),
+    voidReason: text("void_reason"),
+    remindersSent: integer("reminders_sent").notNull().default(0),
+    lastReminderAt: ts("last_reminder_at"),
+    /** null when issued automatically (e.g. on checkout) */
+    createdBy: uuid("created_by").references(() => users.id),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [
+    index().on(t.customerOrgId),
+    index().on(t.orderId),
+    index().on(t.status, t.dueAt),
+    check("invoice_paid_range", sql`${t.paidMinor} >= 0 AND ${t.paidMinor} <= ${t.totalMinor}`)
+  ]
+);
+var invoiceLines = pgTable("invoice_lines", {
+  id: id(),
+  invoiceId: uuid("invoice_id").notNull().references(() => invoices.id),
+  description: text("description").notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPriceMinor: money("unit_price_minor").notNull(),
+  taxable: boolean("taxable").notNull().default(true),
+  lineTotalMinor: money("line_total_minor").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0)
+});
 var payments = pgTable(
   "payments",
   {
     id: id(),
-    orderId: uuid("order_id").notNull().references(() => orders.id),
+    orderId: uuid("order_id").references(() => orders.id),
+    invoiceId: uuid("invoice_id").references(() => invoices.id),
     provider: text("provider").notNull(),
+    /** card | mobile_money | bank_transfer | cash | cheque (manual), or the provider's channel */
+    method: text("method"),
+    /** Bank/MoMo transaction reference for manual payments. */
+    externalReference: text("external_reference"),
+    note: text("note"),
+    recordedBy: uuid("recorded_by").references(() => users.id),
     reference: text("reference").notNull().unique(),
     amountMinor: money("amount_minor").notNull(),
     currency: text("currency").notNull(),
@@ -12910,7 +12974,7 @@ var payments = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt()
   },
-  (t) => [index().on(t.orderId)]
+  (t) => [index().on(t.orderId), index().on(t.invoiceId), check("payment_amount_positive", sql`${t.amountMinor} > 0`)]
 );
 var orderLines = pgTable("order_lines", {
   id: id(),
@@ -12919,6 +12983,7 @@ var orderLines = pgTable("order_lines", {
   description: text("description").notNull(),
   quantity: integer("quantity").notNull(),
   unitPriceMinor: money("unit_price_minor").notNull(),
+  taxable: boolean("taxable").notNull().default(true),
   lineTotalMinor: money("line_total_minor").notNull(),
   /** partner connection responsible for fulfilling this line, if any */
   fulfilmentConnectionId: uuid("fulfilment_connection_id"),
@@ -13290,7 +13355,9 @@ var PERMISSIONS = {
   "customer.quotes.read": cu("View own quotations"),
   "customer.quotes.accept": cu("Accept quotations"),
   "customer.orders.read": cu("View own orders"),
-  "customer.orders.pay": cu("Pay own orders online"),
+  "customer.orders.place": cu("Order from the online store"),
+  "customer.orders.pay": cu("Pay own orders and invoices online"),
+  "customer.invoices.read": cu("View own invoices and payments"),
   "customer.documents.read": cu("Download documents shared by SES"),
   "customer.returns.request": cu("Request returns and warranty claims"),
   "customer.users.manage": cu("Manage own customer users", true)
@@ -13417,15 +13484,15 @@ var ROLE_TEMPLATES = [
     key: "customer_admin",
     name: "Customer Administrator",
     domain: "customer",
-    description: "Accepts quotations and manages the customer's users.",
+    description: "Accepts quotations, orders from the store, pays invoices and manages the customer's users.",
     permissions: permissionsForDomain("customer")
   },
   {
     key: "customer_user",
     name: "Customer User",
     domain: "customer",
-    description: "Views quotations and orders.",
-    permissions: ["customer.quotes.read", "customer.orders.read", "customer.documents.read", "customer.returns.request"]
+    description: "Views quotations, orders and invoices.",
+    permissions: ["customer.quotes.read", "customer.orders.read", "customer.invoices.read", "customer.documents.read", "customer.returns.request"]
   }
 ];
 
@@ -33204,58 +33271,40 @@ function publish(event) {
 // src/server/modules/jobs.ts
 var STUCK_AFTER_MS = 10 * 60 * 1e3;
 
-// src/server/modules/integrations/contracts.ts
-var money2 = external_exports.object({ amount_minor: external_exports.number().int().min(0).max(1e11), currency: external_exports.string().regex(/^[A-Z]{3}$/) });
-var sku = external_exports.string().trim().min(1).max(64).regex(/^[A-Za-z0-9._-]+$/, "SKU may contain letters, digits, dot, dash and underscore.");
-var EVENT_SCHEMAS = {
-  "product.upserted": external_exports.object({
-    sku,
-    name: external_exports.string().trim().min(1).max(200),
-    description: external_exports.string().max(5e3).optional(),
-    product_type: external_exports.enum(["hardware", "software_licence", "subscription", "service_package"]).default("hardware"),
-    tracks_stock: external_exports.boolean().default(true),
-    active: external_exports.boolean().default(true),
-    cost: money2.optional()
-  }),
-  "product.retired": external_exports.object({ sku }),
-  "price.updated": external_exports.object({ sku, cost: money2 }),
-  "stock.updated": external_exports.object({
-    sku,
-    on_hand: external_exports.number().int().min(0).max(1e7),
-    location: external_exports.string().trim().min(1).max(40).regex(/^[A-Za-z0-9_-]+$/).default("main")
-  }),
-  "fulfilment.updated": external_exports.object({
-    order_number: external_exports.string().min(1).max(40),
-    line_id: external_exports.string().uuid().optional(),
-    status: external_exports.enum(["accepted", "rejected", "shipped", "delivered"]),
-    tracking_reference: external_exports.string().max(120).optional()
-  })
-};
-var INBOUND_EVENT_TYPES = Object.keys(EVENT_SCHEMAS);
-var envelopeSchema = external_exports.object({
-  id: external_exports.string().min(8).max(100).regex(/^[A-Za-z0-9_.:-]+$/),
-  type: external_exports.enum(INBOUND_EVENT_TYPES),
-  occurred_at: external_exports.string().datetime({ offset: true }),
-  /**
-   * Monotonic per entity: per SKU for product.* and price.*, per SKU+location for stock.*,
-   * per order line for fulfilment.*. Older or equal versions are ignored.
-   */
-  version: external_exports.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
-  data: external_exports.record(external_exports.string(), external_exports.unknown())
-});
-
-// src/server/modules/integrations/manage.ts
-var DEFAULT_OWNERSHIP = { name: "partner", description: "ses", cost: "partner", stock: "partner", status: "partner" };
-var DEFAULT_PRICE_RULE = { type: "markup", bp: 2e3 };
-var connectionInput = external_exports.object({
-  partnerOrgId: external_exports.string().uuid(),
-  name: external_exports.string().trim().min(3).max(100),
-  mode: external_exports.enum(["simulator", "production"]),
-  outboundUrl: external_exports.string().trim().max(500).optional().default(""),
-  staleAfterSeconds: external_exports.number().int().min(60).max(7 * 86400).default(900),
-  sensitivePriceChangeBp: external_exports.number().int().min(100).max(1e5).default(1500),
-  markupBp: external_exports.number().int().min(0).max(1e5).default(2e3)
-});
+// src/server/lib/money.ts
+function applyBp(amountMinor, bp) {
+  const raw = amountMinor * bp / 1e4;
+  return Math.sign(raw) * Math.round(Math.abs(raw));
+}
+function computeTotals({ lines, discountBp, taxes }) {
+  const lineTotals = lines.map((l) => l.quantity * l.unitPriceMinor);
+  const subtotalMinor = lineTotals.reduce((a, b) => a + b, 0);
+  const taxableSubtotal = lines.reduce((a, l, i) => a + (l.taxable ? lineTotals[i] : 0), 0);
+  const discountMinor = applyBp(subtotalMinor, discountBp);
+  const taxableBase = taxableSubtotal - applyBp(taxableSubtotal, discountBp);
+  const breakdown = [];
+  let simpleTaxTotal = 0;
+  for (const t of taxes.filter((t2) => !t2.compound)) {
+    const amountMinor = applyBp(taxableBase, t.rateBp);
+    simpleTaxTotal += amountMinor;
+    breakdown.push({ code: t.code, name: t.name, amountMinor });
+  }
+  let compoundTotal = 0;
+  for (const t of taxes.filter((t2) => t2.compound)) {
+    const amountMinor = applyBp(taxableBase + simpleTaxTotal + compoundTotal, t.rateBp);
+    compoundTotal += amountMinor;
+    breakdown.push({ code: t.code, name: t.name, amountMinor });
+  }
+  const taxMinor = simpleTaxTotal + compoundTotal;
+  return {
+    lineTotals,
+    subtotalMinor,
+    discountMinor,
+    taxMinor,
+    totalMinor: subtotalMinor - discountMinor + taxMinor,
+    breakdown
+  };
+}
 
 // node_modules/nodemailer/dist/esm/shared/url.js
 import net from "node:net";
@@ -34915,152 +34964,6 @@ function normalizeService(service) {
   return response;
 }
 
-// src/server/auth/service.ts
-var SESSION_ABSOLUTE_MS = 12 * 60 * 60 * 1e3;
-var SESSION_IDLE_MS = 30 * 60 * 1e3;
-var LOCKOUT_MS = 15 * 60 * 1e3;
-var RESET_TOKEN_MS = 30 * 60 * 1e3;
-async function loadGrants(db2, userId) {
-  const rows = await db2.select({
-    permissions: permissionSets.permissions,
-    setDomain: permissionSets.domain,
-    organizationId: roleAssignments.organizationId,
-    organizationType: organizations.type,
-    departmentId: roleAssignments.departmentId
-  }).from(roleAssignments).innerJoin(permissionSets, eq(permissionSets.id, roleAssignments.permissionSetId)).innerJoin(organizations, eq(organizations.id, roleAssignments.organizationId)).where(and(eq(roleAssignments.userId, userId), eq(organizations.status, "active")));
-  return rows.filter((r) => r.setDomain === r.organizationType).map((r) => ({
-    permissions: new Set(r.permissions),
-    organizationId: r.organizationId,
-    organizationType: r.organizationType,
-    departmentId: r.departmentId
-  }));
-}
-async function loadActor(db2, userId, session) {
-  const [row] = await db2.select({ user: users, orgType: organizations.type }).from(users).innerJoin(organizations, eq(organizations.id, users.organizationId)).where(eq(users.id, userId));
-  if (!row || row.user.status !== "active") return null;
-  return {
-    userId: row.user.id,
-    name: row.user.name,
-    email: row.user.email,
-    organizationId: row.user.organizationId,
-    organizationType: row.orgType,
-    sessionId: session?.id ?? null,
-    mfaVerified: session?.mfaVerified ?? false,
-    grants: await loadGrants(db2, userId)
-  };
-}
-
-// src/server/lib/money.ts
-function applyBp(amountMinor, bp) {
-  const raw = amountMinor * bp / 1e4;
-  return Math.sign(raw) * Math.round(Math.abs(raw));
-}
-function computeTotals({ lines, discountBp, taxes }) {
-  const lineTotals = lines.map((l) => l.quantity * l.unitPriceMinor);
-  const subtotalMinor = lineTotals.reduce((a, b) => a + b, 0);
-  const taxableSubtotal = lines.reduce((a, l, i) => a + (l.taxable ? lineTotals[i] : 0), 0);
-  const discountMinor = applyBp(subtotalMinor, discountBp);
-  const taxableBase = taxableSubtotal - applyBp(taxableSubtotal, discountBp);
-  const breakdown = [];
-  let simpleTaxTotal = 0;
-  for (const t of taxes.filter((t2) => !t2.compound)) {
-    const amountMinor = applyBp(taxableBase, t.rateBp);
-    simpleTaxTotal += amountMinor;
-    breakdown.push({ code: t.code, name: t.name, amountMinor });
-  }
-  let compoundTotal = 0;
-  for (const t of taxes.filter((t2) => t2.compound)) {
-    const amountMinor = applyBp(taxableBase + simpleTaxTotal + compoundTotal, t.rateBp);
-    compoundTotal += amountMinor;
-    breakdown.push({ code: t.code, name: t.name, amountMinor });
-  }
-  const taxMinor = simpleTaxTotal + compoundTotal;
-  return {
-    lineTotals,
-    subtotalMinor,
-    discountMinor,
-    taxMinor,
-    totalMinor: subtotalMinor - discountMinor + taxMinor,
-    breakdown
-  };
-}
-
-// src/server/modules/settings.ts
-var settingsSchema = external_exports.object({
-  companyName: external_exports.string().min(2).max(120),
-  defaultCurrency: external_exports.string().length(3),
-  locale: external_exports.string().min(2).max(20),
-  timezone: external_exports.string().min(3).max(60),
-  /** Quotations at or above this total need approval (minor units). */
-  quoteApprovalThresholdMinor: external_exports.number().int().min(0),
-  /** Discounts above this need approval (basis points). */
-  maxDiscountBpWithoutApproval: external_exports.number().int().min(0).max(1e4),
-  /** Purchase orders at or above this total need approval (minor units). */
-  poApprovalThresholdMinor: external_exports.number().int().min(0),
-  /** Manual price changes at or above this need approval (basis points of the old price). */
-  sensitivePriceChangeBp: external_exports.number().int().min(0).max(1e5),
-  quoteValidityDays: external_exports.number().int().min(1).max(365),
-  /** Days after fulfilment during which non-warranty returns may be requested. */
-  returnWindowDays: external_exports.number().int().min(0).max(365),
-  /** How long stock is held for an accepted quotation awaiting confirmation. */
-  reservationHoldHours: external_exports.number().int().min(1).max(24 * 30),
-  supportEmail: external_exports.string().email(),
-  supportPhone: external_exports.string().max(40),
-  /** Data Protection Commission (Ghana) registration — shown publicly once set. */
-  dpcRegistrationNumber: external_exports.string().trim().max(60),
-  /** ISO date (YYYY-MM-DD) the DPC certificate expires (certificates last two years), or "". */
-  dpcRegistrationExpires: external_exports.union([external_exports.literal(""), external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.")])
-});
-var DEFAULT_SETTINGS = {
-  companyName: "Synclytics Enterprise Systems",
-  defaultCurrency: "GHS",
-  locale: "en-GH",
-  timezone: "Africa/Accra",
-  quoteApprovalThresholdMinor: 5e6,
-  // GHS 50,000.00
-  maxDiscountBpWithoutApproval: 1e3,
-  // 10%
-  poApprovalThresholdMinor: 2e6,
-  // GHS 20,000.00
-  sensitivePriceChangeBp: 1500,
-  // 15%
-  quoteValidityDays: 30,
-  returnWindowDays: 14,
-  reservationHoldHours: 72,
-  supportEmail: "support@synclyticsenterprisesystems.com",
-  supportPhone: "+233 00 000 0000",
-  dpcRegistrationNumber: "",
-  dpcRegistrationExpires: ""
-};
-async function operatorOrgId(db2) {
-  const [org] = await db2.select({ id: organizations.id }).from(organizations).where(eq(organizations.type, "operator")).limit(1);
-  if (!org) throw new Error("Operator organisation missing \u2014 run `npm run db:seed`.");
-  return org.id;
-}
-async function getSettings(db2, orgId) {
-  const id2 = orgId ?? await operatorOrgId(db2);
-  const rows = await db2.select().from(settings).where(eq(settings.organizationId, id2));
-  const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-  return settingsSchema.parse({ ...DEFAULT_SETTINGS, ...stored });
-}
-async function activeTaxes(db2, orgId) {
-  const id2 = orgId ?? await operatorOrgId(db2);
-  return db2.select().from(taxRates).where(and(eq(taxRates.organizationId, id2), eq(taxRates.active, true))).orderBy(asc(taxRates.sortOrder));
-}
-var taxInput = external_exports.object({
-  code: external_exports.string().regex(/^[A-Z0-9_]{2,20}$/, "Use 2\u201320 capital letters, digits or underscores."),
-  name: external_exports.string().min(2).max(80),
-  rateBp: external_exports.number().int().min(0).max(1e4),
-  compound: external_exports.boolean(),
-  active: external_exports.boolean(),
-  sortOrder: external_exports.number().int().min(0).max(100)
-});
-async function nextNumber(db2, prefix, now = /* @__PURE__ */ new Date()) {
-  const key = `${prefix}-${now.getUTCFullYear()}`;
-  const [row] = await db2.insert(sequences).values({ key, value: 1 }).onConflictDoUpdate({ target: sequences.key, set: { value: sql`${sequences.value} + 1` } }).returning();
-  return `${key}-${String(row.value).padStart(5, "0")}`;
-}
-
 // src/server/modules/approval-types.ts
 var APPROVAL_TYPES = {
   "quote.approval": { label: "Quotation", permission: "quotes.approve", link: (id2) => `/ops/quotes/${id2}` },
@@ -35099,6 +35002,195 @@ function announce() {
 async function customerRecipients(db2, perm, organizationId, exclude) {
   const ids = await usersWithPermission(db2, perm, organizationId);
   return exclude ? ids.filter((i) => i !== exclude) : ids;
+}
+
+// src/server/modules/settings.ts
+var settingsSchema = external_exports.object({
+  companyName: external_exports.string().min(2).max(120),
+  defaultCurrency: external_exports.string().length(3),
+  locale: external_exports.string().min(2).max(20),
+  timezone: external_exports.string().min(3).max(60),
+  /** Quotations at or above this total need approval (minor units). */
+  quoteApprovalThresholdMinor: external_exports.number().int().min(0),
+  /** Discounts above this need approval (basis points). */
+  maxDiscountBpWithoutApproval: external_exports.number().int().min(0).max(1e4),
+  /** Purchase orders at or above this total need approval (minor units). */
+  poApprovalThresholdMinor: external_exports.number().int().min(0),
+  /** Manual price changes at or above this need approval (basis points of the old price). */
+  sensitivePriceChangeBp: external_exports.number().int().min(0).max(1e5),
+  quoteValidityDays: external_exports.number().int().min(1).max(365),
+  /** Days after fulfilment during which non-warranty returns may be requested. */
+  returnWindowDays: external_exports.number().int().min(0).max(365),
+  /** How long stock is held for an accepted quotation awaiting confirmation. */
+  reservationHoldHours: external_exports.number().int().min(1).max(24 * 30),
+  /** Days from issue until an invoice is due. */
+  invoiceDueDays: external_exports.number().int().min(0).max(120),
+  /** Store checkout is refused at or above this total (minor units); larger purchases go through a quotation. */
+  storeOrderLimitMinor: external_exports.number().int().min(0),
+  /** Printed on invoices. */
+  companyAddress: external_exports.string().trim().max(300),
+  /** Ghana Revenue Authority taxpayer identification number (TIN), printed on invoices once set. */
+  companyTin: external_exports.string().trim().max(40),
+  /** Bank / mobile money details printed on invoices. */
+  paymentInstructions: external_exports.string().trim().max(1e3),
+  supportEmail: external_exports.string().email(),
+  supportPhone: external_exports.string().max(40),
+  /** Data Protection Commission (Ghana) registration — shown publicly once set. */
+  dpcRegistrationNumber: external_exports.string().trim().max(60),
+  /** ISO date (YYYY-MM-DD) the DPC certificate expires (certificates last two years), or "". */
+  dpcRegistrationExpires: external_exports.union([external_exports.literal(""), external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD.")])
+});
+var DEFAULT_SETTINGS = {
+  companyName: "Synclytics Enterprise Systems",
+  defaultCurrency: "GHS",
+  locale: "en-GH",
+  timezone: "Africa/Accra",
+  quoteApprovalThresholdMinor: 5e6,
+  // GHS 50,000.00
+  maxDiscountBpWithoutApproval: 1e3,
+  // 10%
+  poApprovalThresholdMinor: 2e6,
+  // GHS 20,000.00
+  sensitivePriceChangeBp: 1500,
+  // 15%
+  quoteValidityDays: 30,
+  returnWindowDays: 14,
+  reservationHoldHours: 72,
+  invoiceDueDays: 14,
+  storeOrderLimitMinor: 5e6,
+  // GHS 50,000.00
+  companyAddress: "Accra, Ghana",
+  companyTin: "",
+  paymentInstructions: "",
+  supportEmail: "support@synclyticsenterprisesystems.com",
+  supportPhone: "+233 00 000 0000",
+  dpcRegistrationNumber: "",
+  dpcRegistrationExpires: ""
+};
+async function operatorOrgId(db2) {
+  const [org] = await db2.select({ id: organizations.id }).from(organizations).where(eq(organizations.type, "operator")).limit(1);
+  if (!org) throw new Error("Operator organisation missing \u2014 run `npm run db:seed`.");
+  return org.id;
+}
+async function getSettings(db2, orgId) {
+  const id2 = orgId ?? await operatorOrgId(db2);
+  const rows = await db2.select().from(settings).where(eq(settings.organizationId, id2));
+  const stored = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  return settingsSchema.parse({ ...DEFAULT_SETTINGS, ...stored });
+}
+async function activeTaxes(db2, orgId) {
+  const id2 = orgId ?? await operatorOrgId(db2);
+  return db2.select().from(taxRates).where(and(eq(taxRates.organizationId, id2), eq(taxRates.active, true))).orderBy(asc(taxRates.sortOrder));
+}
+var taxInput = external_exports.object({
+  code: external_exports.string().regex(/^[A-Z0-9_]{2,20}$/, "Use 2\u201320 capital letters, digits or underscores."),
+  name: external_exports.string().min(2).max(80),
+  rateBp: external_exports.number().int().min(0).max(1e4),
+  compound: external_exports.boolean(),
+  active: external_exports.boolean(),
+  sortOrder: external_exports.number().int().min(0).max(100)
+});
+async function nextNumber(db2, prefix, now = /* @__PURE__ */ new Date()) {
+  const key = `${prefix}-${now.getUTCFullYear()}`;
+  const [row] = await db2.insert(sequences).values({ key, value: 1 }).onConflictDoUpdate({ target: sequences.key, set: { value: sql`${sequences.value} + 1` } }).returning();
+  return `${key}-${String(row.value).padStart(5, "0")}`;
+}
+
+// src/server/modules/invoices.ts
+var manualPaymentInput = external_exports.object({
+  amountMinor: external_exports.number().int().min(1, "Enter an amount above zero."),
+  method: external_exports.enum(["bank_transfer", "mobile_money", "cash", "cheque"]),
+  externalReference: external_exports.string().trim().min(2, "Enter the bank, mobile money or receipt reference.").max(100),
+  paidOn: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use the date the money was received."),
+  note: external_exports.string().trim().max(500).optional().default("")
+});
+
+// src/server/modules/integrations/contracts.ts
+var money2 = external_exports.object({ amount_minor: external_exports.number().int().min(0).max(1e11), currency: external_exports.string().regex(/^[A-Z]{3}$/) });
+var sku = external_exports.string().trim().min(1).max(64).regex(/^[A-Za-z0-9._-]+$/, "SKU may contain letters, digits, dot, dash and underscore.");
+var EVENT_SCHEMAS = {
+  "product.upserted": external_exports.object({
+    sku,
+    name: external_exports.string().trim().min(1).max(200),
+    description: external_exports.string().max(5e3).optional(),
+    product_type: external_exports.enum(["hardware", "software_licence", "subscription", "service_package"]).default("hardware"),
+    tracks_stock: external_exports.boolean().default(true),
+    active: external_exports.boolean().default(true),
+    cost: money2.optional()
+  }),
+  "product.retired": external_exports.object({ sku }),
+  "price.updated": external_exports.object({ sku, cost: money2 }),
+  "stock.updated": external_exports.object({
+    sku,
+    on_hand: external_exports.number().int().min(0).max(1e7),
+    location: external_exports.string().trim().min(1).max(40).regex(/^[A-Za-z0-9_-]+$/).default("main")
+  }),
+  "fulfilment.updated": external_exports.object({
+    order_number: external_exports.string().min(1).max(40),
+    line_id: external_exports.string().uuid().optional(),
+    status: external_exports.enum(["accepted", "rejected", "shipped", "delivered"]),
+    tracking_reference: external_exports.string().max(120).optional()
+  })
+};
+var INBOUND_EVENT_TYPES = Object.keys(EVENT_SCHEMAS);
+var envelopeSchema = external_exports.object({
+  id: external_exports.string().min(8).max(100).regex(/^[A-Za-z0-9_.:-]+$/),
+  type: external_exports.enum(INBOUND_EVENT_TYPES),
+  occurred_at: external_exports.string().datetime({ offset: true }),
+  /**
+   * Monotonic per entity: per SKU for product.* and price.*, per SKU+location for stock.*,
+   * per order line for fulfilment.*. Older or equal versions are ignored.
+   */
+  version: external_exports.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  data: external_exports.record(external_exports.string(), external_exports.unknown())
+});
+
+// src/server/modules/integrations/manage.ts
+var DEFAULT_OWNERSHIP = { name: "partner", description: "ses", cost: "partner", stock: "partner", status: "partner" };
+var DEFAULT_PRICE_RULE = { type: "markup", bp: 2e3 };
+var connectionInput = external_exports.object({
+  partnerOrgId: external_exports.string().uuid(),
+  name: external_exports.string().trim().min(3).max(100),
+  mode: external_exports.enum(["simulator", "production"]),
+  outboundUrl: external_exports.string().trim().max(500).optional().default(""),
+  staleAfterSeconds: external_exports.number().int().min(60).max(7 * 86400).default(900),
+  sensitivePriceChangeBp: external_exports.number().int().min(100).max(1e5).default(1500),
+  markupBp: external_exports.number().int().min(0).max(1e5).default(2e3)
+});
+
+// src/server/auth/service.ts
+var SESSION_ABSOLUTE_MS = 12 * 60 * 60 * 1e3;
+var SESSION_IDLE_MS = 30 * 60 * 1e3;
+var LOCKOUT_MS = 15 * 60 * 1e3;
+var RESET_TOKEN_MS = 30 * 60 * 1e3;
+async function loadGrants(db2, userId) {
+  const rows = await db2.select({
+    permissions: permissionSets.permissions,
+    setDomain: permissionSets.domain,
+    organizationId: roleAssignments.organizationId,
+    organizationType: organizations.type,
+    departmentId: roleAssignments.departmentId
+  }).from(roleAssignments).innerJoin(permissionSets, eq(permissionSets.id, roleAssignments.permissionSetId)).innerJoin(organizations, eq(organizations.id, roleAssignments.organizationId)).where(and(eq(roleAssignments.userId, userId), eq(organizations.status, "active")));
+  return rows.filter((r) => r.setDomain === r.organizationType).map((r) => ({
+    permissions: new Set(r.permissions),
+    organizationId: r.organizationId,
+    organizationType: r.organizationType,
+    departmentId: r.departmentId
+  }));
+}
+async function loadActor(db2, userId, session) {
+  const [row] = await db2.select({ user: users, orgType: organizations.type }).from(users).innerJoin(organizations, eq(organizations.id, users.organizationId)).where(eq(users.id, userId));
+  if (!row || row.user.status !== "active") return null;
+  return {
+    userId: row.user.id,
+    name: row.user.name,
+    email: row.user.email,
+    organizationId: row.user.organizationId,
+    organizationType: row.orgType,
+    sessionId: session?.id ?? null,
+    mfaVerified: session?.mfaVerified ?? false,
+    grants: await loadGrants(db2, userId)
+  };
 }
 
 // src/server/modules/returns.ts

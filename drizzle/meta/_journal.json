@@ -22,6 +22,13 @@
       "when": 1791651675263,
       "tag": "0002_aftersales_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791667124368,
+      "tag": "0003_invoices_checkout",
+      "breakpoints": true
     }
   ]
 }

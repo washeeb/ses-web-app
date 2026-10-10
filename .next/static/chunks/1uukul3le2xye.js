@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,44026,t=>{"use strict";var n=t.i(43476);t.s(["PrintButton",0,function({label:t="Print or save as PDF"}){return(0,n.jsx)("button",{type:"button",className:"btn btn-ghost print:hidden",onClick:()=>window.print(),children:t})}])}]);
