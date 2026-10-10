@@ -310,7 +310,14 @@ Knowledge-base search, ticket classification and report summaries only. Permissi
 - [x] Hourly retention clean-up (sessions, rate limits, reset tokens, finished jobs, sent mail, files of documents deleted > 90 days)
 - [x] New permissions: procurement.approve (privileged), procurement.receive, documents.read/write, customer.documents.read
 
-**M2b — next:** returns and warranties, CSV import/export (products, orders, leads), polling connector + reconciliation, notifications centre, Playwright + axe accessibility suite in CI, nonce-based CSP.
+**M2b — done (2026-10-10, not yet deployed):**
+- [x] Warranties (per-variant months; created on fulfilment; listed for staff and customers)
+- [x] Returns & warranty claims (RMA): customer request within `returnWindowDays` (default 14) or under warranty → staff approve/reject → receive (optional restock into SES stock, ledger reason "return") → refund approval (`refunds.approve`, never the requester or the receiver) or replacement/repair completion; quantities cannot be claimed twice
+- [x] Notifications centre (bell + unread count for staff, customers, partners): approval requests to approvers, decisions to requesters, quotations sent / order confirmed / delivered / cancelled to customer users, new orders to sales, returns, goods received, dead-lettered partner events
+- [x] CSV exports (leads, orders, products, stock, purchase orders, returns) — `data.export` + read permission, audited, formula-injection safe; product import with preview, matched by SKU, prices via the approval rules
+- [x] Nonce-based Content-Security-Policy per request (`'strict-dynamic'`, no `unsafe-inline` scripts); API/download routes keep locked-down static policies
+- [x] Playwright + axe (WCAG 2.1 A/AA) e2e suite in CI on desktop and mobile; deploy bundle is only published when unit tests and e2e pass
+- Deferred to when a partner needs it: polling connector + reconciliation (no partner without webhooks yet; avoid guessing an unbuilt API)
 
 ### M3 — Portals and commerce
 Store checkout and cart, invoices, payment adapters (Paystack/Hubtel/MoMo sandbox), subscriptions and renewals, projects, support tickets with SLA, service contracts, asset records, customer history.
@@ -355,6 +362,7 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 ## 14. Progress log
 
 - 2026-10-10 — Inspected the project folder (empty). Created this plan. Started M1.
+- 2026-10-10 — M2b built: returns/warranties, notifications, CSV import/export, nonce CSP (verified in a production build: every script carries the nonce; injected inline handlers are blocked), Playwright + axe in CI. Low-contrast grey text raised to slate-500. 68 unit/integration tests passing.
 - 2026-10-10 — M2a built: procurement (suppliers, POs with approval, goods receipt), stock ledger, secure documents, retention clean-up. Found and fixed during the build: a dynamic upload path made the Next.js build trace the whole project (risk of shipping local files) — fixed with trace-ignore hints and a packaging guard that refuses bundles containing .env*/.data/src/tests; global CSP was overriding the download sandbox policy — split header rules. Deploy hook now also resyncs system permission sets. 58 tests passing.
 - 2026-10-10 — **Live** at https://synclyticsenterprisesystems.com (InMotion Power, Node 24.21, cPanel PostgreSQL 13/14). Fixes found during deployment: PG<15 compatibility (no NULLS NOT DISTINCT / gen_random_uuid; guarded by tests/postgres-compat.test.ts), DB connects via 127.0.0.1 after cPanel "Synchronize Grants", app-level http→https redirect (cPanel Force HTTPS unavailable behind nginx), deploy branch now append-only so cPanel can fast-forward. Verified externally: all public pages 200, /api/health ok, http→https 308, valid Let's Encrypt cert. Store empty until real products are added. Pending: first admin login, cron, SMTP test, Paystack test key.
 - 2026-10-10 — Source in private GitHub repo washeeb/ses-web-app (main). GitHub Actions "Build deploy bundle" (typecheck, lint, 47 tests, prod audit, Linux build) publishes to the `deploy` branch; cPanel Git Version Control tracks `deploy` and its .cpanel.yml runs deploy-hooks/cpanel-deploy.sh (copy to ~/ses-app keeping .env.production, migrate, restart). First run green. Server-side cPanel setup pending (docs/deploy-inmotion.md §3).

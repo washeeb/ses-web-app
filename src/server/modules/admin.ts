@@ -11,6 +11,7 @@ import { requestPasswordReset, revokeAllSessions } from "../auth/service";
 import { audit } from "./audit";
 import { publish } from "./events";
 import { operatorOrgId } from "./settings";
+import { notifyApprovers } from "./notifications";
 
 export async function listOrganizations(db: DB, actor: Actor) {
   authorize(actor, "users.read");
@@ -109,6 +110,7 @@ export async function assignRole(db: DB, actor: Actor, input: { userId: string; 
         })
         .returning();
       await audit(tx, { actor, action: "permission.change_requested", targetType: "user", targetId: user.u.id, data: { ...payload, approvalId: req!.id } });
+      await notifyApprovers(tx, "permission.change", user.u.id, req!.summary, actor.userId);
       return { applied: false };
     }
     await applyAssignment(tx, { userId: user.u.id, permissionSetId: set.id, departmentId, grantedBy: actor.userId });

@@ -69,6 +69,9 @@ export function VariantFields() {
           <option value="year">Yearly</option>
         </select>
       </Field>
+      <Field label="Warranty (months, 0 = none)" htmlFor="warrantyMonths">
+        <input id="warrantyMonths" name="warrantyMonths" type="number" min={0} max={120} defaultValue={0} className="field" />
+      </Field>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="taxable" defaultChecked /> Taxable</label>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="tracksStock" defaultChecked /> Tracks stock (physical item)</label>
     </div>

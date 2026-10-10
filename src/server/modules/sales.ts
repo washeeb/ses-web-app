@@ -25,6 +25,8 @@ import { publish } from "./events";
 import { enqueue } from "./jobs";
 import { clearReservationExpiry, consumeReservations, releaseReservations, reserveForOrder } from "./inventory";
 import { activeTaxes, getSettings, nextNumber, operatorOrgId } from "./settings";
+import { announce, customerRecipients, notifyApprovers, notifyPermission, notifyUsers } from "./notifications";
+import { createWarrantiesForOrder } from "./returns";
 
 // ───────────────────────────── Enquiries & leads ─────────────────────────────
 
@@ -267,6 +269,7 @@ export async function submitQuote(db: DB, actor: Actor, id: string) {
         requestedBy: actor.userId,
       });
       await audit(tx, { actor, action: "quote.submitted_for_approval", targetType: "quote", targetId: id, data: { reasons } });
+      await notifyApprovers(tx, "quote.approval", id, `Quotation ${q.number}: ${reasons.join("; ")}`, actor.userId);
       return "pending_approval" as const;
     }
     await tx.update(quotes).set({ status: "approved", approvedAt: new Date() }).where(eq(quotes.id, id));
@@ -284,9 +287,15 @@ export async function sendQuote(db: DB, actor: Actor, id: string) {
     if (q.status !== "approved") throw conflict("Only approved quotations can be sent.");
     await tx.update(quotes).set({ status: "sent", sentAt: new Date() }).where(eq(quotes.id, id));
     await audit(tx, { actor, action: "quote.sent", targetType: "quote", targetId: id });
+    await notifyUsers(tx, await customerRecipients(tx, "customer.quotes.read", q.customerOrgId), {
+      title: `New quotation ${q.number}`,
+      body: "Review and accept it in your portal.",
+      link: `/portal/quotes/${id}`,
+    });
     return q;
   });
   publish({ topic: "quotes", orgIds: [q.customerOrgId] });
+  announce();
 }
 
 export async function declineQuote(db: DB, actor: Actor, id: string) {
@@ -352,10 +361,12 @@ export async function acceptQuote(db: DB, actor: Actor, id: string, now = new Da
     );
     await tx.update(quotes).set({ status: "accepted", acceptedAt: now, acceptedBy: actor.userId }).where(eq(quotes.id, id));
     await audit(tx, { actor, action: "quote.accepted", targetType: "quote", targetId: id, data: { orderId: o!.id, orderNumber: o!.number } });
+    await notifyPermission(tx, "orders.write", { title: `New order ${o!.number}`, body: `Quotation ${q.number} was accepted. Confirm the order.`, link: `/ops/orders/${o!.id}` });
     return o!;
   });
   publish({ topic: "orders", orgIds: [order.customerOrgId] });
   publish({ topic: "stock" });
+  announce();
   return order;
 }
 
@@ -444,6 +455,7 @@ export async function confirmOrder(db: DB, actor: Actor, id: string) {
     await clearReservationExpiry(tx, id);
     await requestPartnerFulfilment(tx, id, "order.fulfilment_requested");
     await audit(tx, { actor, action: "order.confirmed", targetType: "order", targetId: id });
+    await notifyUsers(tx, await customerRecipients(tx, "customer.orders.read", o.customerOrgId), { title: `Order ${o.number} confirmed`, link: `/portal/orders/${id}` });
     return o;
   });
   publish({ topic: "orders", orgIds: [o.customerOrgId] });
@@ -460,8 +472,11 @@ export async function fulfilOrder(db: DB, actor: Actor, id: string) {
       .where(and(eq(orderLines.orderId, id), inArray(orderLines.fulfilmentStatus, ["requested", "accepted", "rejected"])));
     if (open.length) throw conflict("Partner-fulfilled lines must be shipped or delivered first.");
     await consumeReservations(tx, id);
-    await tx.update(orders).set({ status: "fulfilled" }).where(eq(orders.id, id));
-    await audit(tx, { actor, action: "order.fulfilled", targetType: "order", targetId: id });
+    const fulfilledAt = new Date();
+    await tx.update(orders).set({ status: "fulfilled", fulfilledAt }).where(eq(orders.id, id));
+    const warrantyCount = await createWarrantiesForOrder(tx, id, fulfilledAt);
+    await audit(tx, { actor, action: "order.fulfilled", targetType: "order", targetId: id, data: { warranties: warrantyCount } });
+    await notifyUsers(tx, await customerRecipients(tx, "customer.orders.read", o.customerOrgId), { title: `Order ${o.number} delivered`, body: warrantyCount ? "Warranty cover has started for eligible items." : undefined, link: `/portal/orders/${id}` });
     return o;
   });
   publish({ topic: "orders", orgIds: [o.customerOrgId] });
@@ -478,6 +493,7 @@ export async function cancelOrder(db: DB, actor: Actor, id: string, reason: stri
     if (o.status === "confirmed") await requestPartnerFulfilment(tx, id, "order.cancelled");
     await tx.update(orders).set({ status: "cancelled" }).where(eq(orders.id, id));
     await audit(tx, { actor, action: "order.cancelled", targetType: "order", targetId: id, data: { reason } });
+    await notifyUsers(tx, await customerRecipients(tx, "customer.orders.read", o.customerOrgId), { title: `Order ${o.number} cancelled`, body: reason, link: `/portal/orders/${id}` });
     return o;
   });
   publish({ topic: "orders", orgIds: [o.customerOrgId] });

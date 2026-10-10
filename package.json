@@ -24,7 +24,8 @@
     "check": "npm run typecheck && npm run lint && npm test",
     "admin:create": "tsx scripts/create-admin.ts",
     "brand:build": "node scripts/brand-assets.mjs",
-    "package:shared": "node scripts/package-shared.mjs"
+    "package:shared": "node scripts/package-shared.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
@@ -40,6 +41,8 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^24.19.2",
     "@types/nodemailer": "^8.0.2",

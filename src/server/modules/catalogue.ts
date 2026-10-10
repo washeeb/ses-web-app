@@ -8,6 +8,7 @@ import { audit } from "./audit";
 import { publish } from "./events";
 import { computeAvailability, levelsForVariants, type Availability } from "./inventory";
 import { getSettings, operatorOrgId } from "./settings";
+import { notifyApprovers } from "./notifications";
 
 export const PRODUCT_TYPES = ["hardware", "software_licence", "subscription", "service_package"] as const;
 export type ProductType = (typeof PRODUCT_TYPES)[number];
@@ -160,6 +161,7 @@ export const variantInput = z.object({
   taxable: z.boolean().default(true),
   tracksStock: z.boolean().default(true),
   billingPeriod: z.enum(["month", "year"]).nullable().optional(),
+  warrantyMonths: z.number().int().min(0).max(120).default(0),
 });
 
 export async function createProduct(db: DB, actor: Actor, input: z.input<typeof productInput>, firstVariant: z.input<typeof variantInput>) {
@@ -253,6 +255,7 @@ export async function requestPriceChange(db: DB, actor: Actor, variantId: string
         })
         .returning();
       await audit(tx, { actor, action: "price.change_requested", targetType: "variant", targetId: variantId, data: { approvalId: req!.id, from: v.priceMinor, to: newPriceMinor, reason } });
+      await notifyApprovers(tx, "price.change", variantId, req!.summary, actor.userId);
       return { applied: false, approvalId: req!.id };
     }
     await applyPrice(tx, variantId, newPriceMinor, { actor, source: `manual: ${reason}` });

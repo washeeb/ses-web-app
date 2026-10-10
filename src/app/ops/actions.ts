@@ -125,7 +125,7 @@ export async function createProductAction(_: Prev, fd: FormData) {
       getDb(),
       actor,
       { name: str(fd, "name"), summary: str(fd, "summary"), description: str(fd, "description"), type: str(fd, "type") as never, categoryId: str(fd, "categoryId") || null, status: str(fd, "status") as never },
-      { sku: str(fd, "sku"), name: str(fd, "variantName"), priceMinor: money(fd, "price"), currency: "GHS", taxable: bool(fd, "taxable"), tracksStock: bool(fd, "tracksStock"), billingPeriod: (str(fd, "billingPeriod") || null) as never },
+      { sku: str(fd, "sku"), name: str(fd, "variantName"), priceMinor: money(fd, "price"), currency: "GHS", taxable: bool(fd, "taxable"), tracksStock: bool(fd, "tracksStock"), billingPeriod: (str(fd, "billingPeriod") || null) as never, warrantyMonths: int(fd, "warrantyMonths") || 0 },
     );
     id = product.id;
   });
@@ -160,6 +160,7 @@ export async function addVariantAction(_: Prev, fd: FormData) {
       taxable: bool(fd, "taxable"),
       tracksStock: bool(fd, "tracksStock"),
       billingPeriod: (str(fd, "billingPeriod") || null) as never,
+      warrantyMonths: int(fd, "warrantyMonths") || 0,
     });
     revalidatePath(`/ops/catalogue/${str(fd, "productId")}`);
     return "Option added.";
@@ -341,6 +342,7 @@ export async function updateSettingsAction(_: Prev, fd: FormData) {
       sensitivePriceChangeBp: percentToBp(str(fd, "sensitivePricePercent")),
       quoteValidityDays: int(fd, "quoteValidityDays"),
       reservationHoldHours: int(fd, "reservationHoldHours"),
+      returnWindowDays: int(fd, "returnWindowDays"),
       supportEmail: str(fd, "supportEmail"),
       supportPhone: str(fd, "supportPhone"),
       dpcRegistrationNumber: str(fd, "dpcRegistrationNumber"),

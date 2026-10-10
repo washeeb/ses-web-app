@@ -9,6 +9,7 @@ export default defineConfig({
     fileParallelism: false,
     pool: "forks",
     include: ["tests/**/*.test.ts"],
+    exclude: ["e2e/**", "node_modules/**"],
     testTimeout: 30_000,
     hookTimeout: 60_000,
     env: {

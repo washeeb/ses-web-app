@@ -23,6 +23,7 @@ import { publish, type LiveEvent } from "../events";
 import { enqueue, type JobRow } from "../jobs";
 import { applyPrice, changeBp } from "../catalogue";
 import { operatorOrgId } from "../settings";
+import { notifyApprovers, notifyPermission } from "../notifications";
 import { EVENT_SCHEMAS, envelopeSchema, SIGNATURE_HEADER, verifySignature, type Envelope, type InboundEventType } from "./contracts";
 
 type Connection = typeof integrationConnections.$inferSelect;
@@ -136,6 +137,7 @@ async function updateCost(tx: DB, conn: Connection, mapping: typeof productMappi
       payload: { variantId: variant.id, sku: variant.sku, fromMinor: variant.priceMinor, toMinor: next, currency: variant.currency, source: `partner:${conn.name}`, partnerCostMinor: cost.amount_minor },
       requestedBy: null,
     });
+    await notifyApprovers(tx, "price.change", variant.id, `Partner price feed (${conn.name}) for ${variant.sku}`, null);
     return "price change held for approval";
   }
   await applyPrice(tx, variant.id, next, { source: `partner:${conn.name}` });
@@ -329,5 +331,6 @@ export async function onInboundDead(db: DB, job: JobRow, error: string) {
   if (!id) return;
   await db.update(inboundEvents).set({ status: "dead", lastError: error.slice(0, 1000) }).where(eq(inboundEvents.id, id));
   await audit(db, { action: "integration.event_dead_lettered", targetType: "inbound_event", targetId: id, data: { error } });
+  await notifyPermission(db, "integrations.manage", { title: "Partner event failed permanently", body: error.slice(0, 200), link: "/ops/integrations" });
   publish({ topic: "integrations" });
 }

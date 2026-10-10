@@ -18,6 +18,7 @@ export default async function CataloguePage() {
         actions={
           <>
             <LiveRefresh topics={["catalogue", "stock"]} />
+            {can(actor, "catalogue.write") && <Link href="/ops/catalogue/import" className="btn btn-ghost">Import CSV</Link>}
             {can(actor, "catalogue.write") && <Link href="/ops/catalogue/new" className="btn btn-primary">New product</Link>}
           </>
         }

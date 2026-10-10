@@ -4,16 +4,19 @@ import { can } from "@/server/authz/policy";
 import type { Permission } from "@/server/authz/permissions";
 import { requireActor } from "@/server/web/session";
 import { logout } from "../(auth)/actions";
+import { NotificationBell } from "@/components/notifications";
 
 const NAV: { href: string; label: string; perm?: Permission }[] = [
   { href: "/ops", label: "Dashboard" },
   { href: "/ops/leads", label: "Leads", perm: "leads.read" },
   { href: "/ops/quotes", label: "Quotations", perm: "quotes.read" },
   { href: "/ops/orders", label: "Orders", perm: "orders.read" },
+  { href: "/ops/returns", label: "Returns & warranty", perm: "orders.read" },
   { href: "/ops/approvals", label: "Approvals", perm: "approvals.read" },
   { href: "/ops/catalogue", label: "Catalogue & stock", perm: "catalogue.read" },
   { href: "/ops/procurement", label: "Procurement", perm: "procurement.read" },
   { href: "/ops/integrations", label: "Partner integrations", perm: "integrations.read" },
+  { href: "/ops/exports", label: "Data exports", perm: "data.export" },
   { href: "/ops/departments", label: "Departments" },
   { href: "/ops/admin/users", label: "Users & access", perm: "users.read" },
   { href: "/ops/admin/settings", label: "Company settings", perm: "settings.manage" },
@@ -44,6 +47,7 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
             {actor.mfaVerified && <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-800">MFA verified</span>}
           </p>
           <div className="flex items-center gap-3">
+            <NotificationBell actor={actor} href="/ops/notifications" />
             <Link href="/" className="text-sm text-slate-600 hover:underline">Public site</Link>
             <form action={logout}>
               <button className="btn btn-ghost">Sign out</button>

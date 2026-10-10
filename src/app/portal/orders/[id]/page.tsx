@@ -47,7 +47,16 @@ export default async function PortalOrderPage({ params, searchParams }: { params
         <PageHeader
           title={`Order ${o.number}`}
           description={<>Placed <DateTime value={o.createdAt} /></>}
-          actions={<><LiveRefresh topics={["orders"]} /><StatusBadge status={o.status} />{o.paymentStatus === "paid" ? <Badge tone="green">paid</Badge> : <Badge tone="amber">unpaid</Badge>}</>}
+          actions={
+            <>
+              <LiveRefresh topics={["orders"]} />
+              <StatusBadge status={o.status} />
+              {o.paymentStatus === "paid" ? <Badge tone="green">paid</Badge> : <Badge tone="amber">unpaid</Badge>}
+              {o.status === "fulfilled" && can(actor, "customer.returns.request", { organizationId: o.customerOrgId }) && (
+                <Link href={`/portal/orders/${o.id}/return`} className="btn btn-ghost">Return or claim warranty</Link>
+              )}
+            </>
+          }
         />
       </div>
       {returnNote && <p role="status" className="mb-4 rounded-lg bg-slate-100 px-4 py-2 text-sm">{returnNote}</p>}

@@ -34,6 +34,9 @@ export const PERMISSIONS = {
   "quotes.approve": op("Approve quotations above limits", true),
   "orders.read": op("View orders"),
   "orders.write": op("Confirm, fulfil and cancel orders"),
+  "returns.manage": op("Approve, receive and resolve returns and warranty claims"),
+  "refunds.approve": op("Approve refunds", true),
+  "data.export": op("Export data to CSV"),
   // Department modules (screens arrive in later milestones)
   "finance.read": op("View finance records"),
   "finance.write": op("Manage invoices and payments", true),
@@ -70,6 +73,7 @@ export const PERMISSIONS = {
   "customer.orders.read": cu("View own orders"),
   "customer.orders.pay": cu("Pay own orders online"),
   "customer.documents.read": cu("Download documents shared by SES"),
+  "customer.returns.request": cu("Request returns and warranty claims"),
   "customer.users.manage": cu("Manage own customer users", true),
 } as const satisfies Record<string, PermissionDef>;
 

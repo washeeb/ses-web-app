@@ -20,9 +20,9 @@ export default async function AuditPage() {
               {rows.map((r) => (
                 <tr key={r.id}>
                   <td className="whitespace-nowrap text-xs"><DateTime value={r.at} /></td>
-                  <td className="text-xs">{r.actorUserId ? people.get(r.actorUserId) ?? r.actorUserId : "system"}{r.ip && <p className="text-slate-400">{r.ip}</p>}</td>
+                  <td className="text-xs">{r.actorUserId ? people.get(r.actorUserId) ?? r.actorUserId : "system"}{r.ip && <p className="text-slate-500">{r.ip}</p>}</td>
                   <td className="font-mono text-xs">{r.action}</td>
-                  <td className="text-xs">{r.targetType}{r.targetId && <p className="font-mono text-[10px] text-slate-400">{r.targetId}</p>}</td>
+                  <td className="text-xs">{r.targetType}{r.targetId && <p className="font-mono text-[10px] text-slate-500">{r.targetId}</p>}</td>
                   <td className="max-w-md">
                     {Object.keys(r.data as object).length > 0 && (
                       <details>

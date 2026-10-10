@@ -57,7 +57,7 @@ export default async function ProductAdminPage({ params }: { params: Promise<{ i
             <Card key={v.id} title={`${v.name} · ${v.sku}`} actions={<AvailabilityBadge a={v.availability} showCount />}>
               <p className="text-sm">
                 Price <strong><Money minor={v.priceMinor} currency={v.currency} /></strong>
-                {v.billingPeriod && ` / ${v.billingPeriod}`} {v.taxable ? "" : "· not taxable"} {v.active ? "" : "· inactive"}
+                {v.billingPeriod && ` / ${v.billingPeriod}`} {v.taxable ? "" : "· not taxable"} {v.active ? "" : "· inactive"} {v.warrantyMonths > 0 && `· ${v.warrantyMonths}-month warranty`}
               </p>
               {v.mapping && (
                 <p className="mt-1 text-xs text-slate-500">

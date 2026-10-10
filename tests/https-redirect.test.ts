@@ -24,3 +24,28 @@ describe("http → https redirect", () => {
     expect(proxy(req("http://localhost:3000/", "http")).headers.get("location")).toBeNull();
   });
 });
+
+describe("content security policy", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("gives each page a fresh nonce and no unsafe-inline scripts", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const a = proxy(req("https://synclyticsenterprisesystems.com/store", "https")).headers.get("content-security-policy")!;
+    const b = proxy(req("https://synclyticsenterprisesystems.com/store", "https")).headers.get("content-security-policy")!;
+    const nonce = (s: string) => /'nonce-([^']+)'/.exec(s)?.[1];
+    expect(nonce(a)).toBeTruthy();
+    expect(nonce(a)).not.toBe(nonce(b));
+    const scriptSrc = a.split("; ").find((d) => d.startsWith("script-src"))!;
+    expect(scriptSrc).toContain("'strict-dynamic'");
+    expect(scriptSrc).not.toContain("unsafe-inline");
+    expect(scriptSrc).not.toContain("unsafe-eval");
+    expect(a).toContain("frame-ancestors 'none'");
+    expect(a).toContain("object-src 'none'");
+  });
+
+  it("leaves API routes and static assets to their own headers", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(proxy(req("https://synclyticsenterprisesystems.com/api/health", "https")).headers.get("content-security-policy")).toBeNull();
+    expect(proxy(req("https://synclyticsenterprisesystems.com/_next/static/x.js", "https")).headers.get("content-security-policy")).toBeNull();
+  });
+});

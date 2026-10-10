@@ -69,13 +69,13 @@ const dtf = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "
 const df = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "Africa/Accra" });
 
 export function DateTime({ value, dateOnly }: { value: Date | string | null | undefined; dateOnly?: boolean }) {
-  if (!value) return <span className="text-slate-400">—</span>;
+  if (!value) return <span className="text-slate-500">—</span>;
   const d = typeof value === "string" ? new Date(value) : value;
   return <time dateTime={d.toISOString()}>{(dateOnly ? df : dtf).format(d)}</time>;
 }
 
 export function Ago({ value }: { value: Date | null | undefined }) {
-  if (!value) return <span className="text-slate-400">never</span>;
+  if (!value) return <span className="text-slate-500">never</span>;
   // Server-rendered per request; LiveRefresh re-renders it when data changes.
   // eslint-disable-next-line react-hooks/purity
   const s = Math.max(0, Math.round((Date.now() - value.getTime()) / 1000));

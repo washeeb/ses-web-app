@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Actor } from "@/server/authz/policy";
 import { Logo } from "./logo";
 import { logout } from "@/app/(auth)/actions";
+import { NotificationBell } from "./notifications";
 
 export function PortalShell({ actor, title, nav, children }: { actor: Actor; title: string; nav: { href: string; label: string }[]; children: React.ReactNode }) {
   return (
@@ -16,6 +17,7 @@ export function PortalShell({ actor, title, nav, children }: { actor: Actor; tit
             {nav.map((n) => (
               <Link key={n.href} href={n.href} className="font-medium text-slate-700 hover:text-teal-700">{n.label}</Link>
             ))}
+            <NotificationBell actor={actor} href={`${nav[0]?.href ?? ""}/notifications`} />
             <span className="hidden text-slate-500 sm:inline">{actor.name}</span>
             <form action={logout}><button className="btn btn-ghost">Sign out</button></form>
           </nav>

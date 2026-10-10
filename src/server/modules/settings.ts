@@ -20,6 +20,8 @@ export const settingsSchema = z.object({
   /** Manual price changes at or above this need approval (basis points of the old price). */
   sensitivePriceChangeBp: z.number().int().min(0).max(100_000),
   quoteValidityDays: z.number().int().min(1).max(365),
+  /** Days after fulfilment during which non-warranty returns may be requested. */
+  returnWindowDays: z.number().int().min(0).max(365),
   /** How long stock is held for an accepted quotation awaiting confirmation. */
   reservationHoldHours: z.number().int().min(1).max(24 * 30),
   supportEmail: z.string().email(),
@@ -41,6 +43,7 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   poApprovalThresholdMinor: 2_000_000, // GHS 20,000.00
   sensitivePriceChangeBp: 1500, // 15%
   quoteValidityDays: 30,
+  returnWindowDays: 14,
   reservationHoldHours: 72,
   supportEmail: "support@synclyticsenterprisesystems.com",
   supportPhone: "+233 00 000 0000",

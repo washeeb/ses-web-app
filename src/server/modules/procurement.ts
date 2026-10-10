@@ -22,6 +22,7 @@ import { publish } from "./events";
 import { recordMovement } from "./inventory";
 import { sendMail } from "./mail";
 import { getSettings, nextNumber, operatorOrgId } from "./settings";
+import { announce, notifyApprovers, notifyUsers } from "./notifications";
 
 // ───────────────────────────── Suppliers ─────────────────────────────
 
@@ -203,6 +204,7 @@ export async function submitPurchaseOrder(db: DB, actor: Actor, id: string) {
         requestedBy: actor.userId,
       });
       await audit(tx, { actor, action: "po.submitted_for_approval", targetType: "purchase_order", targetId: id });
+      await notifyApprovers(tx, "po.approval", id, `Purchase order ${po.number}: ${formatMoney(po.totalMinor, po.currency)}`, actor.userId);
       return "pending_approval" as const;
     }
     await tx.update(purchaseOrders).set({ status: "approved", approvedAt: new Date() }).where(eq(purchaseOrders.id, id));
@@ -328,8 +330,12 @@ export async function receiveGoods(db: DB, actor: Actor, id: string, input: z.in
     const complete = lines.every((l) => l.receivedQuantity >= l.quantity);
     await tx.update(purchaseOrders).set({ status: complete ? "received" : "partially_received" }).where(eq(purchaseOrders.id, id));
     await audit(tx, { actor, action: "po.goods_received", targetType: "purchase_order", targetId: id, data: { grn: grn!.number, lines: wanted.length, complete } });
+    if (po.createdBy !== actor.userId) {
+      await notifyUsers(tx, [po.createdBy], { title: `Goods received for ${po.number}`, body: `${grn!.number}${complete ? " — order complete" : " — partial delivery"}`, link: `/ops/procurement/${id}` });
+    }
     return { grnNumber: grn!.number, complete };
   });
   publish({ topic: "stock" });
+  announce();
   return result;
 }
