@@ -247,6 +247,9 @@
       "turbopackInferModuleSideEffects": true,
       "turbopackPluginRuntimeStrategy": "childProcesses",
       "turbopackSharedRuntime": true,
+      "serverActions": {
+        "bodySizeLimit": "9mb"
+      },
       "turbopackMemoryEvictionMode": "auto",
       "optimizePackageImports": [
         "lucide-react",

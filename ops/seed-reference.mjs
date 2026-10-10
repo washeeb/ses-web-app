@@ -12514,6 +12514,9 @@ __export(schema_exports, {
   categories: () => categories,
   currencies: () => currencies,
   departments: () => departments,
+  documents: () => documents,
+  goodsReceiptLines: () => goodsReceiptLines,
+  goodsReceipts: () => goodsReceipts,
   inboundEvents: () => inboundEvents,
   integrationConnections: () => integrationConnections,
   jobs: () => jobs,
@@ -12530,6 +12533,8 @@ __export(schema_exports, {
   productType: () => productType,
   productVariants: () => productVariants,
   products: () => products,
+  purchaseOrderLines: () => purchaseOrderLines,
+  purchaseOrders: () => purchaseOrders,
   quoteLines: () => quoteLines,
   quotes: () => quotes,
   rateLimits: () => rateLimits,
@@ -12539,7 +12544,9 @@ __export(schema_exports, {
   settings: () => settings,
   stockLevels: () => stockLevels,
   stockLocations: () => stockLocations,
+  stockMovements: () => stockMovements,
   stockReservations: () => stockReservations,
+  suppliers: () => suppliers,
   taxRates: () => taxRates,
   users: () => users
 });
@@ -13013,6 +13020,116 @@ var jobs = pgTable(
   },
   (t) => [index().on(t.status, t.runAt)]
 );
+var suppliers = pgTable("suppliers", {
+  id: id(),
+  name: text("name").notNull(),
+  contactName: text("contact_name"),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  taxId: text("tax_id"),
+  paymentTermsDays: integer("payment_terms_days").notNull().default(30),
+  currency: text("currency").notNull().default("GHS"),
+  /** Optional link when the supplier is also an integration partner. */
+  partnerOrgId: uuid("partner_org_id").references(() => organizations.id),
+  active: boolean("active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt()
+});
+var purchaseOrders = pgTable("purchase_orders", {
+  id: id(),
+  number: text("number").notNull().unique(),
+  supplierId: uuid("supplier_id").notNull().references(() => suppliers.id),
+  /** draft | pending_approval | approved | rejected | sent | partially_received | received | cancelled */
+  status: text("status").notNull().default("draft"),
+  currency: text("currency").notNull(),
+  totalMinor: money("total_minor").notNull().default(0),
+  locationId: uuid("location_id").notNull().references(() => stockLocations.id),
+  expectedAt: ts("expected_at"),
+  notes: text("notes"),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  approvedBy: uuid("approved_by").references(() => users.id),
+  approvedAt: ts("approved_at"),
+  sentAt: ts("sent_at"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt()
+});
+var purchaseOrderLines = pgTable(
+  "purchase_order_lines",
+  {
+    id: id(),
+    purchaseOrderId: uuid("purchase_order_id").notNull().references(() => purchaseOrders.id),
+    variantId: uuid("variant_id").references(() => productVariants.id),
+    description: text("description").notNull(),
+    quantity: integer("quantity").notNull(),
+    unitCostMinor: money("unit_cost_minor").notNull(),
+    lineTotalMinor: money("line_total_minor").notNull(),
+    receivedQuantity: integer("received_quantity").notNull().default(0),
+    sortOrder: integer("sort_order").notNull().default(0)
+  },
+  (t) => [
+    check("po_line_qty_positive", sql`${t.quantity} > 0`),
+    check("po_line_received_range", sql`${t.receivedQuantity} >= 0 AND ${t.receivedQuantity} <= ${t.quantity}`)
+  ]
+);
+var goodsReceipts = pgTable("goods_receipts", {
+  id: id(),
+  number: text("number").notNull().unique(),
+  purchaseOrderId: uuid("purchase_order_id").notNull().references(() => purchaseOrders.id),
+  locationId: uuid("location_id").notNull().references(() => stockLocations.id),
+  receivedBy: uuid("received_by").notNull().references(() => users.id),
+  notes: text("notes"),
+  createdAt: createdAt()
+});
+var goodsReceiptLines = pgTable("goods_receipt_lines", {
+  id: id(),
+  goodsReceiptId: uuid("goods_receipt_id").notNull().references(() => goodsReceipts.id),
+  purchaseOrderLineId: uuid("purchase_order_line_id").notNull().references(() => purchaseOrderLines.id),
+  quantity: integer("quantity").notNull()
+});
+var stockMovements = pgTable(
+  "stock_movements",
+  {
+    id: id(),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id),
+    locationId: uuid("location_id").notNull().references(() => stockLocations.id),
+    /** Signed change to on-hand quantity. */
+    quantity: integer("quantity").notNull(),
+    /** receipt | adjustment | fulfilment | return */
+    reason: text("reason").notNull(),
+    refType: text("ref_type"),
+    refId: text("ref_id"),
+    note: text("note"),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.variantId, t.createdAt)]
+);
+var documents = pgTable(
+  "documents",
+  {
+    id: id(),
+    /** Organisation the record belongs to (customer org for customer-facing records, operator org otherwise). */
+    organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+    /** order | quote | purchase_order | supplier */
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    fileName: text("file_name").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    /** Random name on disk; never derived from user input. */
+    storageKey: text("storage_key").notNull().unique(),
+    /** internal: SES staff only; customer: also visible to the customer organisation */
+    visibility: text("visibility").notNull().default("internal"),
+    uploadedBy: uuid("uploaded_by").notNull().references(() => users.id),
+    deletedAt: ts("deleted_at"),
+    deletedBy: uuid("deleted_by").references(() => users.id),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.entityType, t.entityId)]
+);
 
 // src/server/db/client.ts
 function createDb(url2) {
@@ -13060,7 +13177,11 @@ var PERMISSIONS = {
   "finance.read": op("View finance records"),
   "finance.write": op("Manage invoices and payments", true),
   "procurement.read": op("View procurement"),
-  "procurement.write": op("Manage purchase orders"),
+  "procurement.write": op("Manage suppliers and purchase orders"),
+  "procurement.approve": op("Approve purchase orders above the limit", true),
+  "procurement.receive": op("Receive goods into stock"),
+  "documents.read": op("View attached documents"),
+  "documents.write": op("Upload and remove documents"),
   "projects.read": op("View projects"),
   "projects.write": op("Manage projects"),
   "support.read": op("View support tickets"),
@@ -13087,6 +13208,7 @@ var PERMISSIONS = {
   "customer.quotes.accept": cu("Accept quotations"),
   "customer.orders.read": cu("View own orders"),
   "customer.orders.pay": cu("Pay own orders online"),
+  "customer.documents.read": cu("Download documents shared by SES"),
   "customer.users.manage": cu("Manage own customer users", true)
 };
 var ALL_PERMISSIONS = Object.keys(PERMISSIONS);
@@ -13114,42 +13236,42 @@ var ROLE_TEMPLATES = [
     name: "Executive",
     domain: "operator",
     description: "Read access across the business and approval of high-value quotations.",
-    permissions: [...READ_CORE, "approvals.read", "quotes.approve", "finance.read", "reports.read", "integrations.read", "projects.read", "support.read"]
+    permissions: [...READ_CORE, "approvals.read", "quotes.approve", "finance.read", "reports.read", "integrations.read", "projects.read", "support.read", "procurement.read", "procurement.approve", "documents.read"]
   },
   {
     key: "department_manager",
     name: "Department Manager",
     domain: "operator",
     description: "Manages a department's records; usually assigned with a department scope.",
-    permissions: [...READ_CORE, "leads.write", "quotes.write", "approvals.read", "reports.read", "users.read"]
+    permissions: [...READ_CORE, "leads.write", "quotes.write", "approvals.read", "reports.read", "users.read", "documents.read", "documents.write"]
   },
   {
     key: "finance_officer",
     name: "Finance Officer",
     domain: "operator",
     description: "Finance records, quotation approval and price approvals.",
-    permissions: [...READ_CORE, "finance.read", "finance.write", "approvals.read", "quotes.approve", "catalogue.price.approve", "reports.read"]
+    permissions: [...READ_CORE, "finance.read", "finance.write", "approvals.read", "quotes.approve", "catalogue.price.approve", "reports.read", "procurement.read", "procurement.approve", "documents.read"]
   },
   {
     key: "sales_officer",
     name: "Sales Officer",
     domain: "operator",
     description: "Leads, quotations and orders.",
-    permissions: [...READ_CORE, "leads.write", "quotes.write", "orders.write"]
+    permissions: [...READ_CORE, "leads.write", "quotes.write", "orders.write", "documents.read", "documents.write"]
   },
   {
     key: "procurement_officer",
     name: "Procurement Officer",
     domain: "operator",
     description: "Suppliers, purchase orders and catalogue maintenance.",
-    permissions: [...READ_CORE, "procurement.read", "procurement.write", "catalogue.write", "integrations.read"]
+    permissions: [...READ_CORE, "procurement.read", "procurement.write", "procurement.receive", "catalogue.write", "integrations.read", "documents.read", "documents.write"]
   },
   {
     key: "warehouse_officer",
     name: "Warehouse Officer",
     domain: "operator",
     description: "Stock levels and order fulfilment.",
-    permissions: ["catalogue.read", "inventory.read", "inventory.adjust", "orders.read", "orders.write"]
+    permissions: ["catalogue.read", "inventory.read", "inventory.adjust", "orders.read", "orders.write", "procurement.read", "procurement.receive", "documents.read"]
   },
   {
     key: "engineer",
@@ -13170,7 +13292,7 @@ var ROLE_TEMPLATES = [
     name: "Support Agent",
     domain: "operator",
     description: "Customer support and managed services.",
-    permissions: ["support.read", "support.write", "orders.read", "catalogue.read"]
+    permissions: ["support.read", "support.write", "orders.read", "catalogue.read", "documents.read"]
   },
   {
     key: "hr_officer",
@@ -13191,7 +13313,7 @@ var ROLE_TEMPLATES = [
     name: "Read-only Auditor",
     domain: "operator",
     description: "Read-only access including the audit log. Cannot change anything.",
-    permissions: [...READ_CORE, "audit.read", "approvals.read", "finance.read", "integrations.read", "reports.read", "users.read"]
+    permissions: [...READ_CORE, "audit.read", "approvals.read", "finance.read", "integrations.read", "reports.read", "users.read", "procurement.read", "documents.read"]
   },
   {
     key: "partner_admin",
@@ -13219,7 +13341,7 @@ var ROLE_TEMPLATES = [
     name: "Customer User",
     domain: "customer",
     description: "Views quotations and orders.",
-    permissions: ["customer.quotes.read", "customer.orders.read"]
+    permissions: ["customer.quotes.read", "customer.orders.read", "customer.documents.read"]
   }
 ];
 
@@ -34789,6 +34911,8 @@ var settingsSchema = external_exports.object({
   quoteApprovalThresholdMinor: external_exports.number().int().min(0),
   /** Discounts above this need approval (basis points). */
   maxDiscountBpWithoutApproval: external_exports.number().int().min(0).max(1e4),
+  /** Purchase orders at or above this total need approval (minor units). */
+  poApprovalThresholdMinor: external_exports.number().int().min(0),
   /** Manual price changes at or above this need approval (basis points of the old price). */
   sensitivePriceChangeBp: external_exports.number().int().min(0).max(1e5),
   quoteValidityDays: external_exports.number().int().min(1).max(365),
@@ -34810,6 +34934,8 @@ var DEFAULT_SETTINGS = {
   // GHS 50,000.00
   maxDiscountBpWithoutApproval: 1e3,
   // 10%
+  poApprovalThresholdMinor: 2e6,
+  // GHS 20,000.00
   sensitivePriceChangeBp: 1500,
   // 15%
   quoteValidityDays: 30,

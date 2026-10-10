@@ -12588,6 +12588,9 @@ __export(schema_exports, {
   categories: () => categories,
   currencies: () => currencies,
   departments: () => departments,
+  documents: () => documents,
+  goodsReceiptLines: () => goodsReceiptLines,
+  goodsReceipts: () => goodsReceipts,
   inboundEvents: () => inboundEvents,
   integrationConnections: () => integrationConnections,
   jobs: () => jobs,
@@ -12604,6 +12607,8 @@ __export(schema_exports, {
   productType: () => productType,
   productVariants: () => productVariants,
   products: () => products,
+  purchaseOrderLines: () => purchaseOrderLines,
+  purchaseOrders: () => purchaseOrders,
   quoteLines: () => quoteLines,
   quotes: () => quotes,
   rateLimits: () => rateLimits,
@@ -12613,7 +12618,9 @@ __export(schema_exports, {
   settings: () => settings,
   stockLevels: () => stockLevels,
   stockLocations: () => stockLocations,
+  stockMovements: () => stockMovements,
   stockReservations: () => stockReservations,
+  suppliers: () => suppliers,
   taxRates: () => taxRates,
   users: () => users
 });
@@ -13086,6 +13093,116 @@ var jobs = pgTable(
     completedAt: ts("completed_at")
   },
   (t) => [index().on(t.status, t.runAt)]
+);
+var suppliers = pgTable("suppliers", {
+  id: id(),
+  name: text("name").notNull(),
+  contactName: text("contact_name"),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  taxId: text("tax_id"),
+  paymentTermsDays: integer("payment_terms_days").notNull().default(30),
+  currency: text("currency").notNull().default("GHS"),
+  /** Optional link when the supplier is also an integration partner. */
+  partnerOrgId: uuid("partner_org_id").references(() => organizations.id),
+  active: boolean("active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt()
+});
+var purchaseOrders = pgTable("purchase_orders", {
+  id: id(),
+  number: text("number").notNull().unique(),
+  supplierId: uuid("supplier_id").notNull().references(() => suppliers.id),
+  /** draft | pending_approval | approved | rejected | sent | partially_received | received | cancelled */
+  status: text("status").notNull().default("draft"),
+  currency: text("currency").notNull(),
+  totalMinor: money("total_minor").notNull().default(0),
+  locationId: uuid("location_id").notNull().references(() => stockLocations.id),
+  expectedAt: ts("expected_at"),
+  notes: text("notes"),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  approvedBy: uuid("approved_by").references(() => users.id),
+  approvedAt: ts("approved_at"),
+  sentAt: ts("sent_at"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt()
+});
+var purchaseOrderLines = pgTable(
+  "purchase_order_lines",
+  {
+    id: id(),
+    purchaseOrderId: uuid("purchase_order_id").notNull().references(() => purchaseOrders.id),
+    variantId: uuid("variant_id").references(() => productVariants.id),
+    description: text("description").notNull(),
+    quantity: integer("quantity").notNull(),
+    unitCostMinor: money("unit_cost_minor").notNull(),
+    lineTotalMinor: money("line_total_minor").notNull(),
+    receivedQuantity: integer("received_quantity").notNull().default(0),
+    sortOrder: integer("sort_order").notNull().default(0)
+  },
+  (t) => [
+    check("po_line_qty_positive", sql`${t.quantity} > 0`),
+    check("po_line_received_range", sql`${t.receivedQuantity} >= 0 AND ${t.receivedQuantity} <= ${t.quantity}`)
+  ]
+);
+var goodsReceipts = pgTable("goods_receipts", {
+  id: id(),
+  number: text("number").notNull().unique(),
+  purchaseOrderId: uuid("purchase_order_id").notNull().references(() => purchaseOrders.id),
+  locationId: uuid("location_id").notNull().references(() => stockLocations.id),
+  receivedBy: uuid("received_by").notNull().references(() => users.id),
+  notes: text("notes"),
+  createdAt: createdAt()
+});
+var goodsReceiptLines = pgTable("goods_receipt_lines", {
+  id: id(),
+  goodsReceiptId: uuid("goods_receipt_id").notNull().references(() => goodsReceipts.id),
+  purchaseOrderLineId: uuid("purchase_order_line_id").notNull().references(() => purchaseOrderLines.id),
+  quantity: integer("quantity").notNull()
+});
+var stockMovements = pgTable(
+  "stock_movements",
+  {
+    id: id(),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id),
+    locationId: uuid("location_id").notNull().references(() => stockLocations.id),
+    /** Signed change to on-hand quantity. */
+    quantity: integer("quantity").notNull(),
+    /** receipt | adjustment | fulfilment | return */
+    reason: text("reason").notNull(),
+    refType: text("ref_type"),
+    refId: text("ref_id"),
+    note: text("note"),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.variantId, t.createdAt)]
+);
+var documents = pgTable(
+  "documents",
+  {
+    id: id(),
+    /** Organisation the record belongs to (customer org for customer-facing records, operator org otherwise). */
+    organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+    /** order | quote | purchase_order | supplier */
+    entityType: text("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    fileName: text("file_name").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    /** Random name on disk; never derived from user input. */
+    storageKey: text("storage_key").notNull().unique(),
+    /** internal: SES staff only; customer: also visible to the customer organisation */
+    visibility: text("visibility").notNull().default("internal"),
+    uploadedBy: uuid("uploaded_by").notNull().references(() => users.id),
+    deletedAt: ts("deleted_at"),
+    deletedBy: uuid("deleted_by").references(() => users.id),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.entityType, t.entityId)]
 );
 
 // src/server/db/client.ts

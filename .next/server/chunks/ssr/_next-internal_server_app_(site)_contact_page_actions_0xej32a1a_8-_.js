@@ -1,3 +1,0 @@
-(()=>{"use strict";module.exports=[14994,a=>a.a(async(b,c)=>{try{var d=a.i(48),e=a.i(74032),f=b([d,e]);[d,e]=f.then?(await f)():f,a.s(["607c33840a2141e33a06cd762485475abbc693273d",()=>e.f]),c()}catch(a){c(a)}},!1),48,a=>a.a(async(b,c)=>{try{var d=a.i(74032),e=b([d]);[d]=e.then?(await e)():e,a.s([]),c()}catch(a){c(a)}},!1)]})();
-
-//# sourceMappingURL=_next-internal_server_app_%28site%29_contact_page_actions_0xej32a1a_8-_.js.map

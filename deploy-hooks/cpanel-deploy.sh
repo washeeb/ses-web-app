@@ -9,6 +9,8 @@ APP="${SES_APP_DIR:-$HOME/ses-app}"
 echo "Deploying $(git -C "$SRC" log -1 --format='%h %s' 2>/dev/null || echo bundle) → $APP"
 
 mkdir -p "$APP"
+# Uploaded documents live beside the app, never inside it (rsync --delete would remove them).
+mkdir -p "$HOME/ses-data/uploads" && chmod 700 "$HOME/ses-data" 2>/dev/null || true
 if command -v rsync >/dev/null 2>&1; then
   rsync -a --delete \
     --exclude '.git' --exclude '.cpanel.yml' --exclude '.env.production' --exclude 'tmp/' \
@@ -28,6 +30,8 @@ NODE="$(ls -d "$HOME"/nodevenv/*/*/bin/node 2>/dev/null | grep "/nodevenv/$(base
 if [ -n "$NODE" ] && [ -f "$APP/.env.production" ]; then
   echo "Running database migrations with $NODE"
   (cd "$APP" && "$NODE" ops/migrate.mjs)
+  # Keeps system role permission sets in step with the code (idempotent; never touches business data).
+  (cd "$APP" && NODE_ENV=production "$NODE" ops/seed-reference.mjs)
 else
   echo "Skipping migrations: create the Node.js app and .env.production first (see docs/deploy-inmotion.md)."
 fi

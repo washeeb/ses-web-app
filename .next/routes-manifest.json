@@ -16,7 +16,7 @@
   ],
   "headers": [
     {
-      "source": "/:path*",
+      "source": "/((?!api/documents/).*)",
       "headers": [
         {
           "key": "X-Frame-Options",
@@ -43,7 +43,37 @@
           "value": "max-age=63072000; includeSubDomains"
         }
       ],
-      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
+      "regex": "^(?:/((?!api/documents/).*))(?:/)?$"
+    },
+    {
+      "source": "/api/documents/:path*",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'none'; sandbox; frame-ancestors 'none'"
+        }
+      ],
+      "regex": "^/api/documents(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?(?:/)?$"
     }
   ],
   "onMatchHeaders": [],
@@ -53,6 +83,14 @@
     "fallback": []
   },
   "dynamicRoutes": [
+    {
+      "page": "/api/documents/[id]",
+      "regex": "^/api/documents/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/documents/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
     {
       "page": "/api/v1/integrations/[connectionId]/events",
       "regex": "^/api/v1/integrations/([^/]+?)/events(?:/)?$",
@@ -84,6 +122,14 @@
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/ops/orders/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/ops/procurement/[id]",
+      "regex": "^/ops/procurement/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/procurement/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
       "page": "/ops/quotes/[id]",
@@ -310,6 +356,24 @@
       "regex": "^/ops/orders(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/ops/orders(?:/)?$"
+    },
+    {
+      "page": "/ops/procurement",
+      "regex": "^/ops/procurement(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/procurement(?:/)?$"
+    },
+    {
+      "page": "/ops/procurement/new",
+      "regex": "^/ops/procurement/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/procurement/new(?:/)?$"
+    },
+    {
+      "page": "/ops/procurement/suppliers",
+      "regex": "^/ops/procurement/suppliers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/procurement/suppliers(?:/)?$"
     },
     {
       "page": "/ops/quotes",
