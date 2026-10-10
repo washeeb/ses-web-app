@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI", "Inter", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  /* Taken from the Synclytics logo: navy #002253, teal #00a6a6 */
+  --color-brand-50: #eef3fb;
+  --color-brand-100: #d6e2f5;
+  --color-brand-600: #0b3a82;
+  --color-brand-700: #062c66;
+  --color-brand-900: #002253;
+  --color-accent-500: #00a6a6;
+  --color-accent-600: #008b8b;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #f7f8fb;
+  color: #0f172a;
+}
+
+:focus-visible {
+  outline: 3px solid #0ea5a4;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+}
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+  z-index: 100;
+  background: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+}
+
+/* Form defaults */
+.field-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 0.25rem;
+}
+.field {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  font-size: 0.95rem;
+}
+.field:focus {
+  border-color: #0ea5a4;
+  outline: 2px solid #99f6e4;
+  outline-offset: 0;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  padding: 0.55rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.btn-primary {
+  background: #002253;
+  color: white;
+}
+.btn-primary:hover {
+  background: #0b3a82;
+}
+.btn-accent {
+  background: #007a7a;
+  color: white;
+}
+.btn-accent:hover {
+  background: #006666;
+}
+.btn-ghost {
+  background: white;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+}
+.btn-ghost:hover {
+  background: #f1f5f9;
+}
+.btn-danger {
+  background: #b91c1c;
+  color: white;
+}
+.btn-danger:hover {
+  background: #991b1b;
+}
+.table {
+  width: 100%;
+  font-size: 0.875rem;
+  border-collapse: collapse;
+}
+.table th {
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  background: #f8fafc;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+.table td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+.table tr:hover td {
+  background: #fafcff;
+}

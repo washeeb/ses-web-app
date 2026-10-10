@@ -1,0 +1,5 @@
+# Keep LF line endings in the repository (the deploy hook and server run on Linux).
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.zip binary

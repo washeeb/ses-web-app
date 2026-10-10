@@ -1,0 +1,49 @@
+name: Build deploy bundle
+
+# On every push to main: check, test, build the shared-hosting bundle on Linux and publish it to the
+# `deploy` branch. cPanel → Git Version Control tracks that branch; "Deploy HEAD Commit" runs
+# deploy-hooks/cpanel-deploy.sh on the server (see docs/deploy-inmotion.md).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-bundle
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - name: Dependency audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Build bundle
+        run: node scripts/package-shared.mjs --no-zip
+        env:
+          # Build-time only; the server uses its own key from .env.production.
+          APP_ENCRYPTION_KEY: Y2ktb25seS1rZXktY2ktb25seS1rZXktMzJieXRlcyE=
+      - name: Publish to deploy branch
+        working-directory: .next/standalone
+        run: |
+          rm -f .env .env.local .env.production
+          git init -q -b deploy
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -f .
+          git commit -q -m "Bundle for ${GITHUB_SHA::7}: $(git -C "$GITHUB_WORKSPACE" log -1 --format=%s)"
+          git push -q --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" deploy
+          echo "Published deploy branch for ${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
