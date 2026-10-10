@@ -94,6 +94,14 @@
       "namedRegex": "^/api/v1/integrations/(?<nxtPconnectionId>[^/]+?)/events(?:/)?$"
     },
     {
+      "page": "/ops/assets/[id]",
+      "regex": "^/ops/assets/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/assets/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/ops/catalogue/[id]",
       "regex": "^/ops/catalogue/([^/]+?)(?:/)?$",
       "routeKeys": {
@@ -142,6 +150,14 @@
       "namedRegex": "^/ops/procurement/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/ops/projects/[id]",
+      "regex": "^/ops/projects/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/projects/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/ops/quotes/[id]",
       "regex": "^/ops/quotes/([^/]+?)(?:/)?$",
       "routeKeys": {
@@ -156,6 +172,22 @@
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/ops/returns/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/ops/subscriptions/[id]",
+      "regex": "^/ops/subscriptions/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/subscriptions/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/ops/support/[id]",
+      "regex": "^/ops/support/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/support/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
       "page": "/portal/invoices/[id]",
@@ -182,6 +214,14 @@
       "namedRegex": "^/portal/orders/(?<nxtPid>[^/]+?)/return(?:/)?$"
     },
     {
+      "page": "/portal/projects/[id]",
+      "regex": "^/portal/projects/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/portal/projects/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/portal/quotes/[id]",
       "regex": "^/portal/quotes/([^/]+?)(?:/)?$",
       "routeKeys": {
@@ -196,6 +236,14 @@
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/portal/returns/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/portal/support/[id]",
+      "regex": "^/portal/support/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/portal/support/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
       "page": "/store/[slug]",
@@ -358,6 +406,12 @@
       "namedRegex": "^/ops/approvals(?:/)?$"
     },
     {
+      "page": "/ops/assets",
+      "regex": "^/ops/assets(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/assets(?:/)?$"
+    },
+    {
       "page": "/ops/audit",
       "regex": "^/ops/audit(?:/)?$",
       "routeKeys": {},
@@ -380,6 +434,12 @@
       "regex": "^/ops/catalogue/new(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/ops/catalogue/new(?:/)?$"
+    },
+    {
+      "page": "/ops/contracts",
+      "regex": "^/ops/contracts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/contracts(?:/)?$"
     },
     {
       "page": "/ops/customers",
@@ -448,6 +508,12 @@
       "namedRegex": "^/ops/procurement/suppliers(?:/)?$"
     },
     {
+      "page": "/ops/projects",
+      "regex": "^/ops/projects(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/projects(?:/)?$"
+    },
+    {
       "page": "/ops/quotes",
       "regex": "^/ops/quotes(?:/)?$",
       "routeKeys": {},
@@ -464,6 +530,24 @@
       "regex": "^/ops/returns(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/ops/returns(?:/)?$"
+    },
+    {
+      "page": "/ops/subscriptions",
+      "regex": "^/ops/subscriptions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/subscriptions(?:/)?$"
+    },
+    {
+      "page": "/ops/support",
+      "regex": "^/ops/support(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/support(?:/)?$"
+    },
+    {
+      "page": "/ops/support/new",
+      "regex": "^/ops/support/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/support/new(?:/)?$"
     },
     {
       "page": "/partner",
@@ -490,6 +574,12 @@
       "namedRegex": "^/portal(?:/)?$"
     },
     {
+      "page": "/portal/assets",
+      "regex": "^/portal/assets(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/portal/assets(?:/)?$"
+    },
+    {
       "page": "/portal/invoices",
       "regex": "^/portal/invoices(?:/)?$",
       "routeKeys": {},
@@ -502,10 +592,34 @@
       "namedRegex": "^/portal/notifications(?:/)?$"
     },
     {
+      "page": "/portal/projects",
+      "regex": "^/portal/projects(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/portal/projects(?:/)?$"
+    },
+    {
       "page": "/portal/returns",
       "regex": "^/portal/returns(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/portal/returns(?:/)?$"
+    },
+    {
+      "page": "/portal/subscriptions",
+      "regex": "^/portal/subscriptions(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/portal/subscriptions(?:/)?$"
+    },
+    {
+      "page": "/portal/support",
+      "regex": "^/portal/support(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/portal/support(?:/)?$"
+    },
+    {
+      "page": "/portal/support/new",
+      "regex": "^/portal/support/new(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/portal/support/new(?:/)?$"
     },
     {
       "page": "/privacy",

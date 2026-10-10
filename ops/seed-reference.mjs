@@ -12520,6 +12520,7 @@ var schema_exports = {};
 __export(schema_exports, {
   apiCredentials: () => apiCredentials,
   approvalRequests: () => approvalRequests,
+  assets: () => assets,
   auditLog: () => auditLog,
   categories: () => categories,
   currencies: () => currencies,
@@ -12546,6 +12547,9 @@ __export(schema_exports, {
   productType: () => productType,
   productVariants: () => productVariants,
   products: () => products,
+  projectMilestones: () => projectMilestones,
+  projectTasks: () => projectTasks,
+  projects: () => projects,
   purchaseOrderLines: () => purchaseOrderLines,
   purchaseOrders: () => purchaseOrders,
   quoteLines: () => quoteLines,
@@ -12555,14 +12559,18 @@ __export(schema_exports, {
   returnRequests: () => returnRequests,
   roleAssignments: () => roleAssignments,
   sequences: () => sequences,
+  serviceContracts: () => serviceContracts,
   sessions: () => sessions,
   settings: () => settings,
   stockLevels: () => stockLevels,
   stockLocations: () => stockLocations,
   stockMovements: () => stockMovements,
   stockReservations: () => stockReservations,
+  subscriptions: () => subscriptions,
   suppliers: () => suppliers,
   taxRates: () => taxRates,
+  ticketMessages: () => ticketMessages,
+  tickets: () => tickets,
   users: () => users,
   warranties: () => warranties
 });
@@ -12905,6 +12913,8 @@ var invoices = pgTable(
     number: text("number").notNull().unique(),
     customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
     orderId: uuid("order_id").references(() => orders.id),
+    /** Set on renewal invoices. */
+    subscriptionId: uuid("subscription_id"),
     /** issued | part_paid | paid | void */
     status: text("status").notNull().default("issued"),
     currency: text("currency").notNull().references(() => currencies.code),
@@ -13275,6 +13285,191 @@ var notifications = pgTable(
   },
   (t) => [index().on(t.userId, t.readAt)]
 );
+var subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    variantId: uuid("variant_id").references(() => productVariants.id),
+    description: text("description").notNull(),
+    quantity: integer("quantity").notNull(),
+    unitPriceMinor: money("unit_price_minor").notNull(),
+    currency: text("currency").notNull().references(() => currencies.code),
+    taxable: boolean("taxable").notNull().default(true),
+    /** month | year */
+    billingPeriod: text("billing_period").notNull(),
+    /** active | ended | lapsed | cancelled */
+    status: text("status").notNull().default("active"),
+    autoRenew: boolean("auto_renew").notNull().default(true),
+    currentPeriodStart: ts("current_period_start").notNull(),
+    currentPeriodEnd: ts("current_period_end").notNull(),
+    /** Open renewal invoice for the next period, if issued. */
+    renewalInvoiceId: uuid("renewal_invoice_id"),
+    sourceOrderId: uuid("source_order_id").references(() => orders.id),
+    sourceOrderLineId: uuid("source_order_line_id").references(() => orderLines.id),
+    endedAt: ts("ended_at"),
+    endReason: text("end_reason"),
+    createdBy: uuid("created_by").references(() => users.id),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [index().on(t.customerOrgId), index().on(t.status, t.currentPeriodEnd), check("subscription_qty_positive", sql`${t.quantity} > 0`)]
+);
+var serviceContracts = pgTable(
+  "service_contracts",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    name: text("name").notNull(),
+    /** business_hours (Mon–Fri 08:00–17:00 Accra) | 24x7 */
+    coverage: text("coverage").notNull().default("business_hours"),
+    slaTargets: jsonb("sla_targets").$type().notNull(),
+    startsAt: ts("starts_at").notNull(),
+    endsAt: ts("ends_at").notNull(),
+    /** active | cancelled (expiry is derived from ends_at) */
+    status: text("status").notNull().default("active"),
+    notes: text("notes"),
+    createdBy: uuid("created_by").references(() => users.id),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [index().on(t.customerOrgId), check("contract_dates", sql`${t.endsAt} > ${t.startsAt}`)]
+);
+var assets = pgTable(
+  "assets",
+  {
+    id: id(),
+    tag: text("tag").notNull().unique(),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    variantId: uuid("variant_id").references(() => productVariants.id),
+    name: text("name").notNull(),
+    serialNumber: text("serial_number"),
+    location: text("location"),
+    /** active | in_repair | retired */
+    status: text("status").notNull().default("active"),
+    orderId: uuid("order_id").references(() => orders.id),
+    orderLineId: uuid("order_line_id").references(() => orderLines.id),
+    contractId: uuid("contract_id").references(() => serviceContracts.id),
+    installedAt: ts("installed_at"),
+    notes: text("notes"),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [index().on(t.customerOrgId), index().on(t.serialNumber)]
+);
+var tickets = pgTable(
+  "tickets",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    contractId: uuid("contract_id").references(() => serviceContracts.id),
+    assetId: uuid("asset_id").references(() => assets.id),
+    subject: text("subject").notNull(),
+    /** low | normal | high | urgent */
+    priority: text("priority").notNull().default("normal"),
+    category: text("category").notNull().default("general"),
+    /** new | open | pending_customer | resolved | closed */
+    status: text("status").notNull().default("new"),
+    /** 1 = first line, 2 = second line, 3 = engineering */
+    level: integer("level").notNull().default(1),
+    coverage: text("coverage").notNull(),
+    requesterUserId: uuid("requester_user_id").notNull().references(() => users.id),
+    assigneeUserId: uuid("assignee_user_id").references(() => users.id),
+    responseDueAt: ts("response_due_at").notNull(),
+    resolutionDueAt: ts("resolution_due_at").notNull(),
+    firstRespondedAt: ts("first_responded_at"),
+    responseBreached: boolean("response_breached").notNull().default(false),
+    resolutionBreached: boolean("resolution_breached").notNull().default(false),
+    /** Set while waiting on the customer: the resolution clock is paused. */
+    pausedAt: ts("paused_at"),
+    resolvedAt: ts("resolved_at"),
+    closedAt: ts("closed_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [index().on(t.customerOrgId), index().on(t.status), check("ticket_level_range", sql`${t.level} BETWEEN 1 AND 3`)]
+);
+var ticketMessages = pgTable(
+  "ticket_messages",
+  {
+    id: id(),
+    ticketId: uuid("ticket_id").notNull().references(() => tickets.id),
+    authorUserId: uuid("author_user_id").references(() => users.id),
+    body: text("body").notNull(),
+    /** Internal notes are never shown to the customer. */
+    internal: boolean("internal").notNull().default(false),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.ticketId, t.createdAt)]
+);
+var projects = pgTable(
+  "projects",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    /** null for internal projects */
+    customerOrgId: uuid("customer_org_id").references(() => organizations.id),
+    orderId: uuid("order_id").references(() => orders.id),
+    name: text("name").notNull(),
+    description: text("description"),
+    /** planning | active | on_hold | completed | cancelled */
+    status: text("status").notNull().default("planning"),
+    managerUserId: uuid("manager_user_id").notNull().references(() => users.id),
+    startDate: ts("start_date"),
+    dueDate: ts("due_date"),
+    completedAt: ts("completed_at"),
+    createdBy: uuid("created_by").notNull().references(() => users.id),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [index().on(t.customerOrgId), index().on(t.status)]
+);
+var projectMilestones = pgTable(
+  "project_milestones",
+  {
+    id: id(),
+    projectId: uuid("project_id").notNull().references(() => projects.id),
+    name: text("name").notNull(),
+    dueDate: ts("due_date"),
+    /** open | awaiting_signoff | signed_off */
+    status: text("status").notNull().default("open"),
+    signoffRequestedBy: uuid("signoff_requested_by").references(() => users.id),
+    signoffRequestedAt: ts("signoff_requested_at"),
+    signedOffBy: uuid("signed_off_by").references(() => users.id),
+    signedOffAt: ts("signed_off_at"),
+    /** Last sign-off decision note (approval comment or reason for rejection). */
+    signoffNote: text("signoff_note"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: createdAt()
+  },
+  (t) => [
+    index().on(t.projectId),
+    check("milestone_no_self_signoff", sql`${t.signedOffBy} IS NULL OR ${t.signoffRequestedBy} IS NULL OR ${t.signedOffBy} <> ${t.signoffRequestedBy}`)
+  ]
+);
+var projectTasks = pgTable(
+  "project_tasks",
+  {
+    id: id(),
+    projectId: uuid("project_id").notNull().references(() => projects.id),
+    milestoneId: uuid("milestone_id").references(() => projectMilestones.id),
+    title: text("title").notNull(),
+    /** todo | in_progress | done */
+    status: text("status").notNull().default("todo"),
+    assigneeUserId: uuid("assignee_user_id").references(() => users.id),
+    dueDate: ts("due_date"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [index().on(t.projectId)]
+);
 
 // src/server/db/client.ts
 function createDb(url2) {
@@ -13330,6 +13525,8 @@ var PERMISSIONS = {
   "procurement.receive": op("Receive goods into stock"),
   "documents.read": op("View attached documents"),
   "documents.write": op("Upload and remove documents"),
+  "subscriptions.manage": op("Manage subscriptions and service contracts"),
+  "assets.manage": op("Register and update customer assets"),
   "projects.read": op("View projects"),
   "projects.write": op("Manage projects"),
   "support.read": op("View support tickets"),
@@ -13360,6 +13557,13 @@ var PERMISSIONS = {
   "customer.invoices.read": cu("View own invoices and payments"),
   "customer.documents.read": cu("Download documents shared by SES"),
   "customer.returns.request": cu("Request returns and warranty claims"),
+  "customer.subscriptions.read": cu("View own subscriptions and service contracts"),
+  "customer.subscriptions.manage": cu("Turn subscription auto-renewal on or off"),
+  "customer.tickets.read": cu("View own support tickets"),
+  "customer.tickets.write": cu("Raise and reply to support tickets"),
+  "customer.projects.read": cu("View own projects"),
+  "customer.projects.signoff": cu("Sign off project milestones"),
+  "customer.assets.read": cu("View own registered equipment"),
   "customer.users.manage": cu("Manage own customer users", true)
 };
 var ALL_PERMISSIONS = Object.keys(PERMISSIONS);
@@ -13394,21 +13598,21 @@ var ROLE_TEMPLATES = [
     name: "Department Manager",
     domain: "operator",
     description: "Manages a department's records; usually assigned with a department scope.",
-    permissions: [...READ_CORE, "leads.write", "quotes.write", "approvals.read", "reports.read", "users.read", "documents.read", "documents.write", "returns.manage", "data.export"]
+    permissions: [...READ_CORE, "leads.write", "quotes.write", "approvals.read", "reports.read", "users.read", "documents.read", "documents.write", "returns.manage", "data.export", "subscriptions.manage", "projects.read", "support.read"]
   },
   {
     key: "finance_officer",
     name: "Finance Officer",
     domain: "operator",
     description: "Finance records, quotation approval and price approvals.",
-    permissions: [...READ_CORE, "finance.read", "finance.write", "approvals.read", "quotes.approve", "catalogue.price.approve", "reports.read", "procurement.read", "procurement.approve", "documents.read", "refunds.approve", "data.export"]
+    permissions: [...READ_CORE, "finance.read", "finance.write", "approvals.read", "quotes.approve", "catalogue.price.approve", "reports.read", "procurement.read", "procurement.approve", "documents.read", "refunds.approve", "data.export", "subscriptions.manage"]
   },
   {
     key: "sales_officer",
     name: "Sales Officer",
     domain: "operator",
     description: "Leads, quotations and orders.",
-    permissions: [...READ_CORE, "leads.write", "quotes.write", "orders.write", "documents.read", "documents.write", "returns.manage", "data.export"]
+    permissions: [...READ_CORE, "leads.write", "quotes.write", "orders.write", "documents.read", "documents.write", "returns.manage", "data.export", "subscriptions.manage", "support.read", "projects.read"]
   },
   {
     key: "procurement_officer",
@@ -13422,14 +13626,14 @@ var ROLE_TEMPLATES = [
     name: "Warehouse Officer",
     domain: "operator",
     description: "Stock levels and order fulfilment.",
-    permissions: ["catalogue.read", "inventory.read", "inventory.adjust", "orders.read", "orders.write", "procurement.read", "procurement.receive", "documents.read", "returns.manage", "data.export"]
+    permissions: ["catalogue.read", "inventory.read", "inventory.adjust", "orders.read", "orders.write", "procurement.read", "procurement.receive", "documents.read", "returns.manage", "data.export", "assets.manage"]
   },
   {
     key: "engineer",
     name: "Engineer",
     domain: "operator",
-    description: "Delivery and engineering work.",
-    permissions: ["catalogue.read", "projects.read", "projects.write", "support.read", "integrations.read"]
+    description: "Delivery and engineering work, including escalated (third-line) support tickets.",
+    permissions: ["catalogue.read", "projects.read", "projects.write", "support.read", "support.write", "assets.manage", "integrations.read"]
   },
   {
     key: "network_operator",
@@ -13443,7 +13647,7 @@ var ROLE_TEMPLATES = [
     name: "Support Agent",
     domain: "operator",
     description: "Customer support and managed services.",
-    permissions: ["support.read", "support.write", "orders.read", "catalogue.read", "documents.read", "returns.manage"]
+    permissions: ["support.read", "support.write", "orders.read", "catalogue.read", "documents.read", "returns.manage", "assets.manage"]
   },
   {
     key: "hr_officer",
@@ -13464,7 +13668,7 @@ var ROLE_TEMPLATES = [
     name: "Read-only Auditor",
     domain: "operator",
     description: "Read-only access including the audit log. Cannot change anything.",
-    permissions: [...READ_CORE, "audit.read", "approvals.read", "finance.read", "integrations.read", "reports.read", "users.read", "procurement.read", "documents.read", "data.export"]
+    permissions: [...READ_CORE, "audit.read", "approvals.read", "finance.read", "integrations.read", "reports.read", "users.read", "procurement.read", "documents.read", "data.export", "support.read", "projects.read"]
   },
   {
     key: "partner_admin",
@@ -13492,7 +13696,18 @@ var ROLE_TEMPLATES = [
     name: "Customer User",
     domain: "customer",
     description: "Views quotations, orders and invoices.",
-    permissions: ["customer.quotes.read", "customer.orders.read", "customer.invoices.read", "customer.documents.read", "customer.returns.request"]
+    permissions: [
+      "customer.quotes.read",
+      "customer.orders.read",
+      "customer.invoices.read",
+      "customer.documents.read",
+      "customer.returns.request",
+      "customer.subscriptions.read",
+      "customer.tickets.read",
+      "customer.tickets.write",
+      "customer.projects.read",
+      "customer.assets.read"
+    ]
   }
 ];
 
@@ -35033,6 +35248,12 @@ var settingsSchema = external_exports.object({
   companyTin: external_exports.string().trim().max(40),
   /** Bank / mobile money details printed on invoices. */
   paymentInstructions: external_exports.string().trim().max(1e3),
+  /** Renewal invoices are issued this many days before a subscription period ends. */
+  renewalNoticeDays: external_exports.number().int().min(1).max(90),
+  /** Unpaid renewals lapse this many days after the period ends. */
+  renewalGraceDays: external_exports.number().int().min(0).max(60),
+  /** Resolved tickets close automatically after this many days without a customer reply. */
+  ticketAutoCloseDays: external_exports.number().int().min(1).max(60),
   supportEmail: external_exports.string().email(),
   supportPhone: external_exports.string().max(40),
   /** Data Protection Commission (Ghana) registration — shown publicly once set. */
@@ -35062,6 +35283,9 @@ var DEFAULT_SETTINGS = {
   companyAddress: "Accra, Ghana",
   companyTin: "",
   paymentInstructions: "",
+  renewalNoticeDays: 30,
+  renewalGraceDays: 14,
+  ticketAutoCloseDays: 7,
   supportEmail: "support@synclyticsenterprisesystems.com",
   supportPhone: "+233 00 000 0000",
   dpcRegistrationNumber: "",
@@ -35095,6 +35319,20 @@ async function nextNumber(db2, prefix, now = /* @__PURE__ */ new Date()) {
   const [row] = await db2.insert(sequences).values({ key, value: 1 }).onConflictDoUpdate({ target: sequences.key, set: { value: sql`${sequences.value} + 1` } }).returning();
   return `${key}-${String(row.value).padStart(5, "0")}`;
 }
+
+// src/server/modules/service-time.ts
+var PRIORITIES = ["urgent", "high", "normal", "low"];
+var OPEN = 8 * 60;
+var CLOSE = 17 * 60;
+var DEFAULT_SLA = {
+  coverage: "business_hours",
+  targets: {
+    urgent: { responseMinutes: 60, resolutionMinutes: 8 * 60 },
+    high: { responseMinutes: 4 * 60, resolutionMinutes: 2 * 9 * 60 },
+    normal: { responseMinutes: 8 * 60, resolutionMinutes: 5 * 9 * 60 },
+    low: { responseMinutes: 2 * 9 * 60, resolutionMinutes: 10 * 9 * 60 }
+  }
+};
 
 // src/server/modules/invoices.ts
 var manualPaymentInput = external_exports.object({
@@ -35200,6 +35438,36 @@ var returnInput = external_exports.object({
   resolution: external_exports.enum(["refund", "replacement", "repair"]),
   reason: external_exports.string().trim().min(10, "Describe the problem (at least 10 characters).").max(2e3),
   lines: external_exports.array(external_exports.object({ orderLineId: external_exports.string().uuid(), quantity: external_exports.number().int().min(0) })).min(1)
+});
+
+// src/server/modules/subscriptions.ts
+var subscriptionInput = external_exports.object({
+  customerOrgId: external_exports.string().uuid("Choose a customer."),
+  variantId: external_exports.string().uuid("Choose a subscription product."),
+  quantity: external_exports.number().int().min(1).max(1e5),
+  startsOn: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the start date."),
+  autoRenew: external_exports.boolean().default(true)
+});
+var hours = external_exports.number().min(0.25).max(24 * 90);
+var contractInput = external_exports.object({
+  customerOrgId: external_exports.string().uuid("Choose a customer."),
+  name: external_exports.string().trim().min(3).max(120),
+  coverage: external_exports.enum(["business_hours", "24x7"]),
+  startsOn: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  endsOn: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /** Targets in hours, per priority. */
+  targets: external_exports.record(external_exports.enum(PRIORITIES), external_exports.object({ responseHours: hours, resolutionHours: hours })),
+  notes: external_exports.string().trim().max(2e3).optional().default("")
+});
+
+// src/server/modules/assets.ts
+var assetInput = external_exports.object({
+  name: external_exports.string().trim().min(2).max(200),
+  serialNumber: external_exports.string().trim().max(100).optional().default(""),
+  location: external_exports.string().trim().max(200).optional().default(""),
+  status: external_exports.enum(["active", "in_repair", "retired"]).default("active"),
+  contractId: external_exports.string().uuid().nullable().optional(),
+  notes: external_exports.string().trim().max(2e3).optional().default("")
 });
 
 // src/server/modules/sales.ts
