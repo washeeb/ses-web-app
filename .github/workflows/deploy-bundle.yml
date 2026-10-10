@@ -37,13 +37,27 @@ jobs:
           # Build-time only; the server uses its own key from .env.production.
           APP_ENCRYPTION_KEY: Y2ktb25seS1rZXktY2ktb25seS1rZXktMzJieXRlcyE=
       - name: Publish to deploy branch
-        working-directory: .next/standalone
+        # Adds a commit on top of the existing `deploy` branch (never rewrites it), so cPanel's
+        # "Update from Remote" can always fast-forward.
+        env:
+          REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
         run: |
-          rm -f .env .env.local .env.production
-          git init -q -b deploy
+          rm -f .next/standalone/.env .next/standalone/.env.local .next/standalone/.env.production
+          DEST="$RUNNER_TEMP/deploy"
+          if git clone -q --depth 1 --branch deploy "$REMOTE" "$DEST"; then
+            echo "Updating existing deploy branch"
+          else
+            git init -q -b deploy "$DEST"
+          fi
+          rsync -a --delete --exclude '.git' .next/standalone/ "$DEST/"
+          cd "$DEST"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A -f .
+          if git diff --cached --quiet; then
+            echo "Bundle unchanged; nothing to publish" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           git commit -q -m "Bundle for ${GITHUB_SHA::7}: $(git -C "$GITHUB_WORKSPACE" log -1 --format=%s)"
-          git push -q --force "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" deploy
+          git push -q "$REMOTE" HEAD:deploy
           echo "Published deploy branch for ${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"

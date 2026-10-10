@@ -195,7 +195,7 @@ curl -fsS -m 120 -H "Authorization: Bearer <CRON_SECRET>" https://synclyticsente
    - then click **Deploy HEAD Commit**
 4. Open `/api/health` to check the site.
 
-**Roll back:** every bundle commit on the `deploy` branch is replaced on the next build, so roll back by reverting the change on `main` and pushing; a new bundle is built from the reverted code. Migrations only add to the schema, so older code keeps working.
+**Roll back:** revert the change on `main` and push; a new bundle is built from the reverted code and added to `deploy`. (The `deploy` branch only ever gains commits, so "Update from Remote" always works.) Migrations only add to the schema, so older code keeps working.
 
 **Without Git:** run `npm run package:shared`, extract the zip over `~/ses-app`, run `node ops/migrate.mjs` in the virtual environment, then restart the app.
 
