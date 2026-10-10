@@ -13,7 +13,9 @@ import { cartQuoteAction, placeOrderAction, updateCartLineAction } from "../cart
 
 export const metadata: Metadata = { title: "Your cart" };
 
-export default async function CartPage() {
+export default async function CartPage({ searchParams }: { searchParams: Promise<{ requested?: string }> }) {
+  const { requested } = await searchParams;
+  const reference = requested && /^L-\d{4}-\d{5}$/.test(requested) ? requested : null;
   const db = getDb();
   const [cart, session, settings] = await Promise.all([readCart(), getSessionState(), getSettings(db)]);
   const priced = await priceCart(db, cart);
@@ -26,6 +28,11 @@ export default async function CartPage() {
         <Link href="/store" className="hover:underline">Store</Link> / <span>Cart</span>
       </nav>
       <h1 className="mt-3 text-3xl font-bold text-slate-900">Your cart</h1>
+      {reference && (
+        <p role="status" className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          Thank you. Your quotation request reference is <strong>{reference}</strong>. Our sales team will contact you within one business day.
+        </p>
+      )}
 
       {priced.lines.length === 0 ? (
         <div className="mt-8">

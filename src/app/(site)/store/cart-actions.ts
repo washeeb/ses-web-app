@@ -53,7 +53,8 @@ export async function placeOrderAction(_: ActionState, fd: FormData): Promise<Ac
 }
 
 export async function cartQuoteAction(_: ActionState, fd: FormData): Promise<ActionState> {
-  return run(async () => {
+  let reference = "";
+  const result = await run(async () => {
     const r = await requestCartQuote(
       getDb(),
       {
@@ -68,7 +69,10 @@ export async function cartQuoteAction(_: ActionState, fd: FormData): Promise<Act
       await clientIp(),
     );
     await writeCart([]);
-    revalidatePath("/", "layout");
-    return `Thank you. Your quotation request reference is ${r.number}. Our sales team will contact you within one business day.`;
+    reference = r.number;
   });
+  if (!result.ok) return result;
+  // The cart is now empty, so the form disappears: show the reference on the page itself.
+  revalidatePath("/", "layout");
+  redirect(`/store/cart?requested=${encodeURIComponent(reference)}`);
 }
