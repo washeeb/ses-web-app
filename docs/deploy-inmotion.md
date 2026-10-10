@@ -71,7 +71,39 @@ One-time setup:
 
 ## 4. Settings file
 
-In `~/ses-app` (cPanel File Manager; **not** inside `public_html`), create a file named `.env.production` with the contents below, then set its permissions to **600**. Deployments never overwrite this file.
+In `~/ses-app` (**not** inside `public_html`), create a file named `.env.production` with permissions **600**. The app and the maintenance commands both read it, and deployments never overwrite it.
+
+**Easiest way:** paste this into cPanel **Terminal**. It generates `APP_ENCRYPTION_KEY` and `CRON_SECRET` on the server and refuses to overwrite an existing file. Then replace the placeholders `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `OUTGOING_SERVER` and `MAILBOX_PASSWORD` in File Manager (Settings → Show Hidden Files). Use a database password made of letters and numbers only. Back up `APP_ENCRYPTION_KEY` in a password manager.
+
+```bash
+F=~/ses-app/.env.production; mkdir -p ~/ses-app; if [ -e "$F" ]; then echo "STOP: $F already exists - not overwritten"; else umask 077; cat > "$F" <<EOF
+NODE_ENV=production
+APP_URL=https://synclyticsenterprisesystems.com
+DATABASE_URL=postgres://DB_USER:DB_PASSWORD@localhost:5432/DB_NAME
+DB_POOL_MAX=3
+APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
+CRON_SECRET=$(openssl rand -hex 24)
+WORKER_MODE=inline
+SIMULATORS_ENABLED=false
+TRUST_PROXY=true
+
+MAIL_ADAPTER=smtp
+SMTP_HOST=OUTGOING_SERVER
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=no-reply@synclyticsenterprisesystems.com
+SMTP_PASSWORD=MAILBOX_PASSWORD
+MAIL_FROM="Synclytics Enterprise Systems <no-reply@synclyticsenterprisesystems.com>"
+
+PAYSTACK_SECRET_KEY=
+PAYSTACK_CHANNELS=card,mobile_money
+EOF
+echo "Created $F"; ls -l "$F"; fi
+```
+
+Check the database login: `psql "$(grep '^DATABASE_URL=' ~/ses-app/.env.production | cut -d= -f2-)" -c "select current_user;"`
+
+Alternatively, create the file by hand with the contents below.
 
 > No Git? Run `npm run package:shared` on your PC, then upload and extract `deploy/ses-shared-YYYY-MM-DD.zip` into `~/ses-app` instead.
 
