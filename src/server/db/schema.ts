@@ -372,13 +372,19 @@ export const orders = pgTable("orders", {
   number: text("number").notNull().unique(),
   customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
   quoteId: uuid("quote_id").references(() => quotes.id),
+  /** quote (accepted quotation) | store (online checkout) */
+  source: text("source").notNull().default("quote"),
+  /** Customer's own purchase-order number or reference. */
+  customerReference: text("customer_reference"),
   status: text("status").notNull().default("pending"),
   currency: text("currency").notNull().references(() => currencies.code),
   subtotalMinor: money("subtotal_minor").notNull(),
   discountMinor: money("discount_minor").notNull().default(0),
   taxMinor: money("tax_minor").notNull(),
   totalMinor: money("total_minor").notNull(),
+  taxBreakdown: jsonb("tax_breakdown").$type<{ code: string; name: string; amountMinor: number }[]>().notNull().default([]),
   createdBy: uuid("created_by").references(() => users.id),
+  /** unpaid | part_paid | paid — mirrors the order's invoice */
   paymentStatus: text("payment_status").notNull().default("unpaid"),
   fulfilledAt: ts("fulfilled_at"),
   paidAt: ts("paid_at"),
@@ -387,13 +393,77 @@ export const orders = pgTable("orders", {
   updatedAt: updatedAt(),
 });
 
-/** Online payment attempts. Status is only ever set from a verified provider response. */
+// ───────────────────────────── Invoices ─────────────────────────────
+
+/** One open (non-void) invoice per order, enforced in code under the order lock; standalone invoices have no order. */
+export const invoices = pgTable(
+  "invoices",
+  {
+    id: id(),
+    number: text("number").notNull().unique(),
+    customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
+    orderId: uuid("order_id").references(() => orders.id),
+    /** issued | part_paid | paid | void */
+    status: text("status").notNull().default("issued"),
+    currency: text("currency").notNull().references(() => currencies.code),
+    subtotalMinor: money("subtotal_minor").notNull(),
+    discountMinor: money("discount_minor").notNull().default(0),
+    taxMinor: money("tax_minor").notNull(),
+    totalMinor: money("total_minor").notNull(),
+    taxBreakdown: jsonb("tax_breakdown").$type<{ code: string; name: string; amountMinor: number }[]>().notNull().default([]),
+    paidMinor: money("paid_minor").notNull().default(0),
+    customerReference: text("customer_reference"),
+    notes: text("notes"),
+    issuedAt: ts("issued_at").notNull().defaultNow(),
+    dueAt: ts("due_at").notNull(),
+    paidAt: ts("paid_at"),
+    voidedAt: ts("voided_at"),
+    voidedBy: uuid("voided_by").references(() => users.id),
+    voidReason: text("void_reason"),
+    remindersSent: integer("reminders_sent").notNull().default(0),
+    lastReminderAt: ts("last_reminder_at"),
+    /** null when issued automatically (e.g. on checkout) */
+    createdBy: uuid("created_by").references(() => users.id),
+    isDemo: boolean("is_demo").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index().on(t.customerOrgId),
+    index().on(t.orderId),
+    index().on(t.status, t.dueAt),
+    check("invoice_paid_range", sql`${t.paidMinor} >= 0 AND ${t.paidMinor} <= ${t.totalMinor}`),
+  ],
+);
+
+export const invoiceLines = pgTable("invoice_lines", {
+  id: id(),
+  invoiceId: uuid("invoice_id").notNull().references(() => invoices.id),
+  description: text("description").notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPriceMinor: money("unit_price_minor").notNull(),
+  taxable: boolean("taxable").notNull().default(true),
+  lineTotalMinor: money("line_total_minor").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+/**
+ * Payments. Online (provider "paystack") rows only become successful from a verified provider response;
+ * manual rows (provider "manual": bank transfer, mobile money, cash, cheque) are recorded by finance staff.
+ */
 export const payments = pgTable(
   "payments",
   {
     id: id(),
-    orderId: uuid("order_id").notNull().references(() => orders.id),
+    orderId: uuid("order_id").references(() => orders.id),
+    invoiceId: uuid("invoice_id").references(() => invoices.id),
     provider: text("provider").notNull(),
+    /** card | mobile_money | bank_transfer | cash | cheque (manual), or the provider's channel */
+    method: text("method"),
+    /** Bank/MoMo transaction reference for manual payments. */
+    externalReference: text("external_reference"),
+    note: text("note"),
+    recordedBy: uuid("recorded_by").references(() => users.id),
     reference: text("reference").notNull().unique(),
     amountMinor: money("amount_minor").notNull(),
     currency: text("currency").notNull(),
@@ -408,7 +478,7 @@ export const payments = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index().on(t.orderId)],
+  (t) => [index().on(t.orderId), index().on(t.invoiceId), check("payment_amount_positive", sql`${t.amountMinor} > 0`)],
 );
 
 export const orderLines = pgTable("order_lines", {
@@ -418,6 +488,7 @@ export const orderLines = pgTable("order_lines", {
   description: text("description").notNull(),
   quantity: integer("quantity").notNull(),
   unitPriceMinor: money("unit_price_minor").notNull(),
+  taxable: boolean("taxable").notNull().default(true),
   lineTotalMinor: money("line_total_minor").notNull(),
   /** partner connection responsible for fulfilling this line, if any */
   fulfilmentConnectionId: uuid("fulfilment_connection_id"),

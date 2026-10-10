@@ -6,11 +6,13 @@ import { getOrder } from "@/server/modules/sales";
 import { can } from "@/server/authz/policy";
 import { AppError } from "@/server/lib/errors";
 import { ActionForm } from "@/components/action-form";
-import { Badge, Card, DateTime, Money, PageHeader, StatusBadge, TableWrap } from "@/components/ui";
+import { Card, DateTime, Money, PageHeader, StatusBadge, TableWrap } from "@/components/ui";
 import { LiveRefresh } from "@/components/live-refresh";
 import { orderAction } from "../../actions";
 import { listPayments } from "@/server/modules/payments/paystack";
 import { DocumentsPanel } from "@/components/documents-panel";
+import { balanceOf, invoiceForOrder } from "@/server/modules/invoices";
+import { issueInvoiceAction } from "../../invoices/actions";
 
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,11 +24,17 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const canWrite = can(actor, "orders.write");
   const holds = o.reservations.filter((r) => r.status === "active");
   const payments = await listPayments(getDb(), o.id);
+  const invoice = await invoiceForOrder(getDb(), o.id);
   return (
     <>
       <PageHeader
         title={`Order ${o.number}`}
-        description={<>Customer: {o.customerName} · created <DateTime value={o.createdAt} /></>}
+        description={
+          <>
+            Customer: <Link href={`/ops/customers/${o.customerOrgId}`} className="text-teal-700 underline">{o.customerName}</Link> · {o.source === "store" ? "online store" : "from quotation"} · created <DateTime value={o.createdAt} />
+            {o.customerReference && <> · customer ref. {o.customerReference}</>}
+          </>
+        }
         actions={
           <>
             <LiveRefresh topics={["orders"]} />
@@ -69,8 +77,23 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           {o.quoteId && <p className="mt-4 text-sm"><Link href={`/ops/quotes/${o.quoteId}`} className="text-teal-700 hover:underline">View source quotation</Link></p>}
         </Card>
         <div className="min-w-0 space-y-6">
-          <Card title="Payment" actions={o.paymentStatus === "paid" ? <Badge tone="green">paid</Badge> : <Badge tone="amber">unpaid</Badge>}>
-            <p className="text-sm">{o.paymentStatus === "paid" ? <>Paid <DateTime value={o.paidAt} /></> : "No successful payment yet."}</p>
+          <Card title="Invoice & payment" actions={<StatusBadge status={o.paymentStatus} />}>
+            {invoice ? (
+              <p className="text-sm">
+                <Link href={`/ops/invoices/${invoice.id}`} className="font-medium text-teal-700 underline">{invoice.number}</Link> · <StatusBadge status={invoice.status} />
+                <span className="block text-slate-600">Balance <Money minor={balanceOf(invoice)} currency={invoice.currency} /> · due <DateTime value={invoice.dueAt} dateOnly /></span>
+              </p>
+            ) : (
+              <div className="space-y-2 text-sm">
+                <p className="text-slate-600">No open invoice.</p>
+                {can(actor, "finance.write") && !["cancelled", "expired"].includes(o.status) && (
+                  <ActionForm action={issueInvoiceAction} submitLabel="Issue invoice" submitClassName="btn btn-ghost">
+                    <input type="hidden" name="orderId" value={o.id} />
+                  </ActionForm>
+                )}
+              </div>
+            )}
+            {o.paymentStatus === "paid" && <p className="mt-2 text-sm">Paid <DateTime value={o.paidAt} /></p>}
             {payments.length > 0 && (
               <ul className="mt-2 space-y-1 text-xs">
                 {payments.map((p) => (

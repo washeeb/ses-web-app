@@ -55,6 +55,7 @@ const STATUS_TONE: Record<string, Tone> = {
   not_started: "gray", requested: "blue", shipped: "purple", delivered: "green",
   simulator: "purple", production: "teal",
   partially_received: "amber", initialized: "blue", success: "green", amount_mismatch: "red", abandoned: "gray",
+  issued: "blue", part_paid: "amber", paid: "green", unpaid: "amber", void: "gray", reversed: "gray", overdue: "red",
 };
 
 export function StatusBadge({ status }: { status: string }) {

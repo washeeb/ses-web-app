@@ -136,6 +136,7 @@ export async function getProductAdmin(db: DB, actor: Actor, id: string) {
   };
 }
 
+const RESERVED_SLUGS = new Set(["cart", "checkout"]);
 const slugify = (s: string) =>
   s
     .toLowerCase()
@@ -171,7 +172,8 @@ export async function createProduct(db: DB, actor: Actor, input: z.input<typeof 
   return db.transaction(async (tx) => {
     let slug = slugify(p.name) || "product";
     const [clash] = await tx.select({ id: products.id }).from(products).where(eq(products.slug, slug));
-    if (clash) slug = `${slug}-${Date.now().toString(36)}`;
+    // "cart" is the store's own page (/store/cart), so a product may not take that address.
+    if (clash || RESERVED_SLUGS.has(slug)) slug = `${slug}-${Date.now().toString(36)}`;
     const [skuClash] = await tx.select({ id: productVariants.id }).from(productVariants).where(eq(productVariants.sku, v.sku));
     if (skuClash) throw conflict(`SKU ${v.sku} is already in use.`);
     const [product] = await tx.insert(products).values({ ...p, slug, categoryId: p.categoryId ?? null }).returning();

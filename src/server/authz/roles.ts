@@ -127,14 +127,14 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     key: "customer_admin",
     name: "Customer Administrator",
     domain: "customer",
-    description: "Accepts quotations and manages the customer's users.",
+    description: "Accepts quotations, orders from the store, pays invoices and manages the customer's users.",
     permissions: permissionsForDomain("customer"),
   },
   {
     key: "customer_user",
     name: "Customer User",
     domain: "customer",
-    description: "Views quotations and orders.",
-    permissions: ["customer.quotes.read", "customer.orders.read", "customer.documents.read", "customer.returns.request"],
+    description: "Views quotations, orders and invoices.",
+    permissions: ["customer.quotes.read", "customer.orders.read", "customer.invoices.read", "customer.documents.read", "customer.returns.request"],
   },
 ];

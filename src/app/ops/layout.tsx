@@ -11,6 +11,8 @@ const NAV: { href: string; label: string; perm?: Permission }[] = [
   { href: "/ops/leads", label: "Leads", perm: "leads.read" },
   { href: "/ops/quotes", label: "Quotations", perm: "quotes.read" },
   { href: "/ops/orders", label: "Orders", perm: "orders.read" },
+  { href: "/ops/invoices", label: "Invoices", perm: "finance.read" },
+  { href: "/ops/customers", label: "Customers", perm: "orders.read" },
   { href: "/ops/returns", label: "Returns & warranty", perm: "orders.read" },
   { href: "/ops/approvals", label: "Approvals", perm: "approvals.read" },
   { href: "/ops/catalogue", label: "Catalogue & stock", perm: "catalogue.read" },
@@ -27,8 +29,8 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
   const actor = await requireActor("operator", "/ops");
   const items = NAV.filter((n) => !n.perm || can(actor, n.perm));
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
-      <aside className="border-b border-slate-200 bg-white lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
+    <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr] print:block">
+      <aside className="border-b border-slate-200 bg-white print:hidden lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
         <div className="flex items-center justify-between px-4 py-4">
           <Logo href="/ops" height={34} />
         </div>
@@ -41,7 +43,7 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
         </nav>
       </aside>
       <div className="min-w-0">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3 print:hidden">
           <p className="text-sm text-slate-600">
             Operations · <span className="font-medium text-slate-900">{actor.name}</span>
             {actor.mfaVerified && <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-800">MFA verified</span>}

@@ -24,6 +24,16 @@ export const settingsSchema = z.object({
   returnWindowDays: z.number().int().min(0).max(365),
   /** How long stock is held for an accepted quotation awaiting confirmation. */
   reservationHoldHours: z.number().int().min(1).max(24 * 30),
+  /** Days from issue until an invoice is due. */
+  invoiceDueDays: z.number().int().min(0).max(120),
+  /** Store checkout is refused at or above this total (minor units); larger purchases go through a quotation. */
+  storeOrderLimitMinor: z.number().int().min(0),
+  /** Printed on invoices. */
+  companyAddress: z.string().trim().max(300),
+  /** Ghana Revenue Authority taxpayer identification number (TIN), printed on invoices once set. */
+  companyTin: z.string().trim().max(40),
+  /** Bank / mobile money details printed on invoices. */
+  paymentInstructions: z.string().trim().max(1000),
   supportEmail: z.string().email(),
   supportPhone: z.string().max(40),
   /** Data Protection Commission (Ghana) registration — shown publicly once set. */
@@ -45,6 +55,11 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   quoteValidityDays: 30,
   returnWindowDays: 14,
   reservationHoldHours: 72,
+  invoiceDueDays: 14,
+  storeOrderLimitMinor: 5_000_000, // GHS 50,000.00
+  companyAddress: "Accra, Ghana",
+  companyTin: "",
+  paymentInstructions: "",
   supportEmail: "support@synclyticsenterprisesystems.com",
   supportPhone: "+233 00 000 0000",
   dpcRegistrationNumber: "",

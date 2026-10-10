@@ -5,6 +5,8 @@ import { listOrders, listQuotes } from "@/server/modules/sales";
 import { can } from "@/server/authz/policy";
 import { Card, DateTime, EmptyState, Money, PageHeader, StatusBadge, TableWrap } from "@/components/ui";
 import { LiveRefresh } from "@/components/live-refresh";
+import { receivables } from "@/server/modules/invoices";
+import { Stat } from "@/components/ui";
 
 export default async function PortalHome() {
   const actor = await requireActor("customer");
@@ -13,9 +15,17 @@ export default async function PortalHome() {
     can(actor, "customer.quotes.read", { organizationId: actor.organizationId }) ? listQuotes(db, actor) : Promise.resolve([]),
     can(actor, "customer.orders.read", { organizationId: actor.organizationId }) ? listOrders(db, actor) : Promise.resolve([]),
   ]);
+  const owed = can(actor, "customer.invoices.read", { organizationId: actor.organizationId }) ? await receivables(db, actor) : null;
   return (
     <>
-      <PageHeader title="Your account" description="Quotations from SES and the orders they became. Invoices, subscriptions, projects, tickets and documents arrive in later releases." actions={<LiveRefresh topics={["quotes", "orders"]} />} />
+      <PageHeader title="Your account" description="Quotations from SES, your orders and invoices." actions={<LiveRefresh topics={["quotes", "orders", "invoices"]} />} />
+      {owed && (
+        <div className="mb-6 grid gap-4 sm:grid-cols-3">
+          <Stat label="Outstanding balance" value={<Money minor={owed.outstandingMinor} />} href="/portal/invoices" />
+          <Stat label="Overdue" value={<Money minor={owed.overdueMinor} />} href="/portal/invoices" tone={owed.overdueMinor > 0 ? "red" : undefined} />
+          <Stat label="Open invoices" value={owed.openCount} href="/portal/invoices" />
+        </div>
+      )}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="Quotations">
           {quotes.length === 0 ? (

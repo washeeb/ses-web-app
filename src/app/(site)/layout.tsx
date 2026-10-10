@@ -3,6 +3,8 @@ import { Logo } from "@/components/logo";
 import { getSessionState, homeFor } from "@/server/web/session";
 import { getDb } from "@/server/db/client";
 import { getSettings } from "@/server/modules/settings";
+import { cartCount } from "@/server/modules/store";
+import { readCart } from "@/server/web/cart";
 
 const NAV = [
   { href: "/services", label: "Services" },
@@ -13,7 +15,9 @@ const NAV = [
 ];
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [session, settings] = await Promise.all([getSessionState(), getSettings(getDb())]);
+  const [session, settings, cart] = await Promise.all([getSessionState(), getSettings(getDb()), readCart()]);
+  const items = cartCount(cart);
+  const cartLink = { href: "/store/cart", label: items ? `Cart (${items})` : "Cart" };
   const account = session && !session.pending ? { href: homeFor(session.actor), label: "My workspace" } : { href: "/login", label: "Sign in" };
   return (
     <>
@@ -26,6 +30,9 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
                 {n.label}
               </Link>
             ))}
+            <Link href={cartLink.href} className="text-sm font-medium text-slate-700 hover:text-teal-700">
+              {cartLink.label}
+            </Link>
             <Link href={account.href} className="btn btn-primary">
               {account.label}
             </Link>
@@ -35,7 +42,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
               Menu
             </summary>
             <nav aria-label="Mobile" className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-              {[...NAV, account].map((n) => (
+              {[...NAV, cartLink, account].map((n) => (
                 <Link key={n.href} href={n.href} className="block rounded-md px-3 py-2 text-sm hover:bg-slate-50">
                   {n.label}
                 </Link>

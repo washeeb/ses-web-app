@@ -1,7 +1,7 @@
 # Synclytics Enterprise Systems (SES) — Project Master Plan
 
 > Living specification. Update the **Status**, **Decisions**, and **Progress log** sections as work lands.
-> Last updated: 2026-10-10 · Current milestone: **M1 — Foundation: complete (local)** · Next: M2 (see §11, §15)
+> Last updated: 2026-10-10 · Live: M1 + M2 · Built, not yet deployed: **M3a — Store checkout, invoices & payments** · Next: M3b (see §11)
 
 ---
 
@@ -113,7 +113,8 @@ Seeded departments: Executive Management & Administration; Sales, Business Devel
 |---|---|---|
 | Lead-to-sale | Enquiry → Lead (new → qualified → won/lost) → Quotation → Order | M1 |
 | Quotation approval | draft → pending_approval (if over threshold or discount limit) → approved/rejected → sent → accepted/declined/expired | M1 |
-| Order-to-payment | order (pending → confirmed → fulfilling → fulfilled / cancelled) → invoice (draft → issued → part-paid → paid / void) → payment | M1 (order) / M3 (invoice, payment) |
+| Order-to-payment | order (pending → confirmed → fulfilled / cancelled / expired) + invoice issued with the order (issued → part_paid → paid / void) → payments (Paystack online, or manual bank/MoMo/cash/cheque by finance) | M1 (order) / M3a (invoice, payment) |
+| Store checkout | cart (cookie: variant + qty only) → re-priced at checkout → order (source `store`) with stock reservation and invoice in one transaction; carts at/above `storeOrderLimitMinor` (default GHS 50,000) go through a quotation | M3a |
 | Procurement-to-delivery | purchase request → approval → PO → goods received → stock | M2 |
 | Project delivery | project → milestones → tasks → sign-off | M3 |
 | Ticket escalation | ticket → L1 → L2 → engineering; SLA timers, breach alerts | M3 |
@@ -186,7 +187,9 @@ Platform Administrator, Company Administrator, Executive, Department Manager, Fi
 | `stock_locations`, `stock_levels`, `stock_reservations` | on_hand, reserved, source_version, source_updated_at; reservations with expiry |
 | `leads` | source, contact, company, service_interest, status, owner, department_id |
 | `quotes`, `quote_lines` | number, customer org, status, totals (minor units), discount, valid_until, created_by |
-| `orders`, `order_lines` | number, customer org, status, totals, quote_id |
+| `orders`, `order_lines` | number, customer org, status, totals, tax_breakdown, source (`quote`/`store`), customer_reference, payment_status (`unpaid`/`part_paid`/`paid`), quote_id; lines carry `taxable` |
+| `invoices`, `invoice_lines` *(M3a)* | number (INV-YYYY-NNNNN), customer org, order_id?, status, totals + tax_breakdown, paid_minor (check: 0 ≤ paid ≤ total), issued/due/paid/voided, reminders_sent |
+| `payments` *(M3a changes)* | order_id? and invoice_id?, provider (`paystack`/`manual`), method, external_reference, recorded_by, status (`success`/`reversed`/…), check amount > 0 |
 | `approval_requests` | type, subject, payload, requested_by, status, decided_by, reason |
 | `integration_connections` | partner org, mode (`simulator`/`production`), status, inbound secret (enc), outbound url + secret (enc), stale_after_seconds, last_sync_at |
 | `api_credentials` | organization_id, connection_id, prefix, key_hash, scopes[], expires_at, revoked_at |
@@ -262,6 +265,8 @@ Responses: `202` accepted (queued), `200` duplicate (already received), `400` in
 
 - Default currency **GHS** (minor unit: pesewa). Additional currencies are configurable (USD seeded); FX rates are entered manually until a rate source is chosen.
 - Taxes are configurable components (compound/non-compound). Seeded Ghana standard set under the VAT Act, 2025 (Act 1151), effective 1 Jan 2026: VAT 15%, NHIL 2.5%, GETFund 2.5%, each on the invoice value (not compounded; COVID levy abolished). Editable in Company settings.
+- Store: business customers order online from a customer account (Customer Administrator holds `customer.orders.place`). Visitors and larger carts send the cart as a quotation request. No consumer self-registration yet.
+- Invoices: issued automatically with every order (payment terms `invoiceDueDays`, default 14). Printed with company address, GRA TIN and payment instructions from Company settings. Overdue reminders (in-app + e-mail) at most 3, a week apart.
 - Payments: **Paystack** (chosen 2026-10-10) — hosted checkout for cards and mobile money in GHS, test keys until go-live. Orders become paid only after SES verifies the transaction with Paystack's API (triggered by the HMAC-SHA512-signed webhook or the return page); amount and currency must match; idempotent; duplicate payments are flagged for refund.
 
 ---
@@ -301,7 +306,7 @@ Knowledge-base search, ticket classification and report summaries only. Permissi
 
 **M1 acceptance**: all tests green; a seeded user per role can sign in and sees only what their permissions allow; simulator events (including duplicates, out-of-order, bad signature, replay) produce the documented results; a quotation over the threshold cannot be approved by its creator; checkout cannot reserve more stock than is available.
 
-### M2 — Operations *(in progress)*
+### M2 — Operations *(complete, live)*
 **M2a — done (2026-10-10):**
 - [x] Suppliers; purchase orders (draft → approval at/above `poApprovalThresholdMinor`, default GHS 20,000, never by the creator → sent, e-mailed to supplier → partially received / received; cancel before receipt)
 - [x] Goods receipt (GRN numbers) into SES locations, over-receipt refused, stock updated atomically
@@ -310,7 +315,7 @@ Knowledge-base search, ticket classification and report summaries only. Permissi
 - [x] Hourly retention clean-up (sessions, rate limits, reset tokens, finished jobs, sent mail, files of documents deleted > 90 days)
 - [x] New permissions: procurement.approve (privileged), procurement.receive, documents.read/write, customer.documents.read
 
-**M2b — done (2026-10-10, not yet deployed):**
+**M2b — done (2026-10-10, live):**
 - [x] Warranties (per-variant months; created on fulfilment; listed for staff and customers)
 - [x] Returns & warranty claims (RMA): customer request within `returnWindowDays` (default 14) or under warranty → staff approve/reject → receive (optional restock into SES stock, ledger reason "return") → refund approval (`refunds.approve`, never the requester or the receiver) or replacement/repair completion; quantities cannot be claimed twice
 - [x] Notifications centre (bell + unread count for staff, customers, partners): approval requests to approvers, decisions to requesters, quotations sent / order confirmed / delivered / cancelled to customer users, new orders to sales, returns, goods received, dead-lettered partner events
@@ -320,7 +325,18 @@ Knowledge-base search, ticket classification and report summaries only. Permissi
 - Deferred to when a partner needs it: polling connector + reconciliation (no partner without webhooks yet; avoid guessing an unbuilt API)
 
 ### M3 — Portals and commerce
-Store checkout and cart, invoices, payment adapters (Paystack/Hubtel/MoMo sandbox), subscriptions and renewals, projects, support tickets with SLA, service contracts, asset records, customer history.
+**M3a — built 2026-10-10 (not yet deployed):**
+- [x] Store cart (httpOnly cookie, ids + quantities only, tamper-safe) and checkout for customer administrators: re-priced from the database, stock re-checked under row locks, order + reservation + invoice in one transaction; staff/partner accounts and Customer Users cannot order; checkout rate-limited; carts at/above the store limit, out-of-stock or stale-partner items are refused with a reason
+- [x] Visitors (and anyone over the limit) can send the cart as a quotation request (lead with the cart lines)
+- [x] Invoices issued automatically for store orders and accepted quotations; staff can (re)issue one per order; void only when nothing is paid; cancelling or expiry voids unpaid invoices automatically and tells finance when a refund is due
+- [x] Manual payments (bank transfer, mobile money, cash, cheque) by `finance.write` with MFA; amount ≤ balance; duplicate references refused; reversal needs a *different* finance user; all audited
+- [x] Paystack now pays the invoice balance (order or invoice page); a payment that arrives after the invoice is settled or void is kept and flagged for refund
+- [x] Customer portal: invoices list/detail (printable), outstanding/overdue totals, pay online; order page links its invoice
+- [x] Staff: invoices (open/overdue/paid/void), receivables, customer history (orders, invoices, quotations, returns, contacts, leads — per permission, department scope respected), invoice card on orders, invoice/payment CSV exports
+- [x] Daily overdue reminders; Company settings for store limit, payment terms, address, TIN, payment instructions
+- Not done: credit notes (refunds are recorded on returns; finance refunds in Paystack/bank), GRA e-VAT / fiscal invoice integration (A4), Hubtel/MoMo direct adapters (Paystack already covers mobile money; no second provider chosen)
+
+**M3b — next:** subscriptions and renewals (T-30 notice → renewal invoice → renewed/lapsed), service contracts with SLA terms, support tickets with SLA timers and escalation (L1 → L2 → engineering), projects (milestones, tasks, sign-off), asset records (installed base: serials, warranty, contract).
 
 ### M4 — Insight and advanced
 Department dashboards and reports, BI exports, AI assistance (§9), multi-instance event bus (Postgres NOTIFY), production hardening and pen-test.
@@ -334,7 +350,7 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 | A1 | **InMotion Power (shared) plan**, domain **synclyticsenterprisesystems.com**. Runs via cPanel Setup Node.js App (Passenger) from a prebuilt standalone bundle (`npm run package:shared`), cPanel PostgreSQL, 5-minute cron to `/api/cron/tick`, polling page refresh. VPS remains the upgrade path for faster sync | Decided |
 | A2 | Primary language English; locale `en-GH`; timezone Africa/Accra | Assumed |
 | A3 | Logos supplied 2026-10-10 (masters in `logo/`, web assets via `npm run brand:build`); palette navy #002253 / teal #00a6a6 from the logo. Company legal details still needed | Partly resolved |
-| A4 | Ghana standard rates (Act 1151) applied. Invoice format requirements (e.g. GRA e-VAT) to review in M3 | Rates done |
+| A4 | Ghana standard rates (Act 1151) applied. Invoices show company address, TIN and tax breakdown (TIN/address set in Company settings). GRA e-VAT / fiscal-device requirements still to confirm with SES's accountant before invoices are treated as VAT invoices | Rates done; e-VAT open |
 | A5 | Paystack chosen; adapter, webhook and portal payment built (test mode). Needs test secret key, then live approval | Waiting for keys |
 | A6 | KingsView web app not built yet; to be built later in `E:\Businesses\1.KingsView\KVS-Web-App` against contract v1. Simulator only until then | Later phase |
 | A7 | E-mail via InMotion hosting mailbox (SMTP adapter built, queued with retries, bodies erased after send). Switch to a transactional provider if deliverability/volume requires. SMS not decided | Waiting for SMTP credentials |
@@ -355,6 +371,8 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 | 2026-10-10 | Department scope only on roles that work department-tagged records (sales); executives, finance, auditors are organisation-wide so they can approve/review across departments |
 | 2026-10-10 | New partner products always arrive as **drafts**; partners never see SES sell prices; partner price rises ≥15% need approval (system-raised, so anyone with `catalogue.price.approve` may decide) |
 | 2026-10-10 | Customer Administrator holds a privileged permission (manage own users) → MFA mandatory for customer admins too |
+| 2026-10-10 | M3a: every order gets its invoice at creation (one open invoice per order); payments always apply to invoices; online payments never partial (full balance); manual-payment reversal is a two-person action |
+| 2026-10-10 | Store ordering is for signed-in business customers only (B2B); no public self-registration; cart kept server-side-validated in a cookie rather than browser storage |
 | 2026-10-10 | Demo data refused when `NODE_ENV=production`; production seeds reference data only and bootstraps the first admin via `npm run admin:create` |
 
 ---
@@ -362,6 +380,8 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 ## 14. Progress log
 
 - 2026-10-10 — Inspected the project folder (empty). Created this plan. Started M1.
+- 2026-10-10 — M3a built: store cart/checkout, invoices, manual + Paystack invoice payments, reversals, overdue reminders, customer history, finance exports. Migration 0003 (PG13-compatible). 83 unit/integration tests passing (15 new); new e2e flows (cart → quotation request; customer admin MFA → order → invoice) and a11y checks for the new pages. Browser-tested locally: guest cart, customer checkout, invoice view, finance part-payment, customer history.
+- 2026-10-10 — M2 deployed live; InMotion Backup Manager confirmed (home directory incl. ~/ses-data and PgSQL every 3 days, off-server).
 - 2026-10-10 — M2b CI hardening: e2e suite (53 tests, desktop + mobile, WCAG 2.1 A/AA via axe, CSP console check) green. It caught and we fixed: login rate limit tripped by per-test sign-in (now one sign-in per role), secondary-text contrast 4.4:1 on the page background (slate-500 darkened to #556275, ≥5.6:1), colour-only inline links (underlined), invalid aria-label on a span, and /forgot-password being pre-rendered without a CSP nonce (all pages now rendered per request). Deploy bundle publishes only after checks + e2e pass.
 - 2026-10-10 — M2b built: returns/warranties, notifications, CSV import/export, nonce CSP (verified in a production build: every script carries the nonce; injected inline handlers are blocked), Playwright + axe in CI. Low-contrast grey text raised to slate-500. 68 unit/integration tests passing.
 - 2026-10-10 — M2a built: procurement (suppliers, POs with approval, goods receipt), stock ledger, secure documents, retention clean-up. Found and fixed during the build: a dynamic upload path made the Next.js build trace the whole project (risk of shipping local files) — fixed with trace-ignore hints and a packaging guard that refuses bundles containing .env*/.data/src/tests; global CSP was overriding the download sandbox policy — split header rules. Deploy hook now also resyncs system permission sets. 58 tests passing.
@@ -374,7 +394,15 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 
 ---
 
-## 15. Status report (M1)
+## 15. Status report
+
+### Current (2026-10-10)
+- **Live** at https://synclyticsenterprisesystems.com: M1 + M2 (procurement, documents, returns/warranty, notifications, CSV, nonce CSP). Verified externally after deploy: public pages 200, `/api/health` ok, per-request CSP nonce header present. Backups: InMotion Backup Manager (home dir incl. `~/ses-data`, PgSQL; every 3 days, off-server).
+- **Built, tested, not yet deployed:** M3a (store checkout, invoices, payments, customer history) — see §11.
+- **Tested for M3a:** 83 unit/integration tests (cart tampering, pricing with Ghana taxes, checkout permissions/limits/stock, atomic order+invoice, invoice visibility across customers, manual payments with MFA/overpayment/duplicates, two-person reversal, void rules, auto-void on cancel/expiry, Paystack invoice payment incl. duplicate-after-settlement refund flag, reminders cadence, stock hold after payment). Browser (local): guest cart → totals; customer admin MFA enrolment → order → invoice; finance part-payment; customer history; no console/CSP errors. E2E + axe for the new pages run in CI.
+- **Still depends on external parties:** Paystack test/live keys (online payment of invoices untested against the real API), SMTP credentials (reminder e-mails queue but are not delivered until set), GRA e-VAT requirements (A4), DPC registration number (later).
+
+### M1 report (historical)
 
 ### Works end to end (persisted, validated, permission-checked)
 - Sign-in with lockout (5 failures/15 min), per-IP/e-mail rate limits, DB sessions (12 h absolute / 30 min idle), sign-out, password reset (single-use, 30 min), **TOTP MFA enrolment + verification, mandatory for privileged permissions**.

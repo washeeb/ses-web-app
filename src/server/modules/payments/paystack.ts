@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { createHmac } from "node:crypto";
 import type { DB } from "../../db/client";
-import { orders, payments } from "../../db/schema";
+import { invoices, orders, payments } from "../../db/schema";
 import { authorize, can, type Actor } from "../../authz/policy";
 import { randomToken, safeEqual } from "../../lib/crypto";
 import { conflict, invalid, notFound } from "../../lib/errors";
@@ -10,6 +10,8 @@ import { audit } from "../audit";
 import { publish } from "../events";
 import { enqueue } from "../jobs";
 import { clearReservationExpiry } from "../inventory";
+import { applyOnlinePayment, balanceOf, invoiceForOrder, OPEN_STATUSES } from "../invoices";
+import { announce } from "../notifications";
 
 /**
  * Paystack (cards and mobile money, GHS). Only test keys (sk_test_…) are expected until SES goes live.
@@ -36,7 +38,7 @@ export async function listPayments(db: DB, orderId: string) {
   return db.select().from(payments).where(eq(payments.orderId, orderId)).orderBy(desc(payments.createdAt));
 }
 
-/** Starts a Paystack checkout for an order and returns the hosted payment page URL. */
+/** Starts a Paystack checkout for an order and returns the hosted payment page URL. Pays the order's invoice when it has one. */
 export async function startPaystackCheckout(db: DB, actor: Actor, orderId: string, appUrl: string, fetchImpl: FetchLike = fetch as unknown as FetchLike) {
   const cfg = paystackConfig();
   if (!cfg) throw invalid("Online payment is not available yet.");
@@ -45,24 +47,55 @@ export async function startPaystackCheckout(db: DB, actor: Actor, orderId: strin
   authorize(actor, "customer.orders.pay", { organizationId: order.customerOrgId });
   if (!PAYABLE_ORDER_STATUSES.includes(order.status)) throw conflict("This order can no longer be paid online.");
   if (order.paymentStatus === "paid") throw conflict("This order is already paid.");
-  if (order.currency !== "GHS") throw invalid("Online payment currently supports GHS orders only.");
+  const inv = await invoiceForOrder(db, orderId);
+  if (inv) return startInvoicePayment(db, actor, inv.id, appUrl, fetchImpl, `/portal/orders/${orderId}`);
+  // Orders placed before invoicing existed are paid in full against the order.
+  return initialize(db, actor, cfg, fetchImpl, { orderId, invoiceId: null, amountMinor: order.totalMinor, currency: order.currency, label: order.number, callback: `${appUrl}/portal/orders/${orderId}` });
+}
 
-  const reference = `SES-${order.number}-${randomToken(6).replace(/[^A-Za-z0-9]/g, "x")}`;
+/** Starts a Paystack checkout for the full outstanding balance of an invoice. */
+export async function startInvoicePayment(db: DB, actor: Actor, invoiceId: string, appUrl: string, fetchImpl: FetchLike = fetch as unknown as FetchLike, returnPath?: string) {
+  const cfg = paystackConfig();
+  if (!cfg) throw invalid("Online payment is not available yet.");
+  const [inv] = await db.select().from(invoices).where(eq(invoices.id, invoiceId));
+  const visible = inv && (can(actor, "customer.invoices.read", { organizationId: inv.customerOrgId }) || can(actor, "customer.orders.read", { organizationId: inv.customerOrgId }));
+  if (!inv || !visible) throw notFound("Invoice not found.");
+  authorize(actor, "customer.orders.pay", { organizationId: inv.customerOrgId });
+  if (!OPEN_STATUSES.includes(inv.status)) throw conflict(inv.status === "paid" ? "This invoice is already paid." : "This invoice can no longer be paid.");
+  return initialize(db, actor, cfg, fetchImpl, {
+    orderId: inv.orderId,
+    invoiceId: inv.id,
+    amountMinor: balanceOf(inv),
+    currency: inv.currency,
+    label: inv.number,
+    callback: `${appUrl}${returnPath ?? `/portal/invoices/${inv.id}`}`,
+  });
+}
+
+async function initialize(
+  db: DB,
+  actor: Actor,
+  cfg: NonNullable<ReturnType<typeof paystackConfig>>,
+  fetchImpl: FetchLike,
+  t: { orderId: string | null; invoiceId: string | null; amountMinor: number; currency: string; label: string; callback: string },
+) {
+  if (t.currency !== "GHS") throw invalid("Online payment currently supports GHS only.");
+  const reference = `SES-${t.label}-${randomToken(6).replace(/[^A-Za-z0-9]/g, "x")}`;
   const [payment] = await db
     .insert(payments)
-    .values({ orderId, provider: "paystack", reference, amountMinor: order.totalMinor, currency: order.currency, mode: cfg.mode, initiatedBy: actor.userId })
+    .values({ orderId: t.orderId, invoiceId: t.invoiceId, provider: "paystack", reference, amountMinor: t.amountMinor, currency: t.currency, mode: cfg.mode, initiatedBy: actor.userId })
     .returning();
   const res = await fetchImpl(`${API}/transaction/initialize`, {
     method: "POST",
     headers: { authorization: `Bearer ${cfg.secret}`, "content-type": "application/json" },
     body: JSON.stringify({
       email: actor.email,
-      amount: order.totalMinor, // pesewas
-      currency: order.currency,
+      amount: t.amountMinor, // pesewas
+      currency: t.currency,
       reference,
       channels: cfg.channels,
-      callback_url: `${appUrl}/portal/orders/${orderId}?payment=${encodeURIComponent(reference)}`,
-      metadata: { order_number: order.number, payment_id: payment!.id },
+      callback_url: `${t.callback}?payment=${encodeURIComponent(reference)}`,
+      metadata: { reference_label: t.label, payment_id: payment!.id },
     }),
     signal: AbortSignal.timeout(15_000),
   });
@@ -70,10 +103,10 @@ export async function startPaystackCheckout(db: DB, actor: Actor, orderId: strin
   const url = body?.data?.authorization_url;
   if (!res.ok || !body?.status || !url || !/^https:\/\/([a-z0-9-]+\.)*paystack\.(com|co)\//.test(url)) {
     await db.update(payments).set({ status: "failed", failureReason: `initialize failed: ${body?.message ?? res.status}` }).where(eq(payments.id, payment!.id));
-    log.warn("paystack.initialize_failed", { orderId, status: res.status, message: body?.message });
+    log.warn("paystack.initialize_failed", { label: t.label, status: res.status, message: body?.message });
     throw invalid("The payment provider could not start the payment. Please try again shortly.");
   }
-  await audit(db, { actor, action: "payment.initialized", targetType: "order", targetId: orderId, data: { reference, amountMinor: order.totalMinor, mode: cfg.mode } });
+  await audit(db, { actor, action: "payment.initialized", targetType: t.invoiceId ? "invoice" : "order", targetId: (t.invoiceId ?? t.orderId)!, data: { reference, amountMinor: t.amountMinor, mode: cfg.mode } });
   return url;
 }
 
@@ -130,7 +163,7 @@ export async function verifyAndApplyPayment(db: DB, reference: string, fetchImpl
   }
   if (d.amount !== payment.amountMinor || d.currency !== payment.currency) {
     await db.update(payments).set({ status: "amount_mismatch", failureReason: `paid ${d.amount} ${d.currency}, expected ${payment.amountMinor} ${payment.currency}` }).where(eq(payments.id, payment.id));
-    await audit(db, { action: "payment.amount_mismatch", targetType: "order", targetId: payment.orderId, data: { reference, paid: d.amount, currency: d.currency } });
+    await audit(db, { action: "payment.amount_mismatch", targetType: payment.invoiceId ? "invoice" : "order", targetId: (payment.invoiceId ?? payment.orderId)!, data: { reference, paid: d.amount, currency: d.currency } });
     return "amount_mismatch" as const;
   }
 
@@ -139,22 +172,33 @@ export async function verifyAndApplyPayment(db: DB, reference: string, fetchImpl
     if (p!.status === "success") return null;
     await tx
       .update(payments)
-      .set({ status: "success", providerTransactionId: d.id ? String(d.id) : null, channel: d.channel ?? null, paidAt: d.paid_at ? new Date(d.paid_at) : new Date() })
+      .set({ status: "success", providerTransactionId: d.id ? String(d.id) : null, channel: d.channel ?? null, method: d.channel ?? null, paidAt: d.paid_at ? new Date(d.paid_at) : new Date() })
       .where(eq(payments.id, payment.id));
+    if (p!.invoiceId) {
+      await applyOnlinePayment(tx, p!.invoiceId, { id: p!.id, amountMinor: p!.amountMinor, reference });
+      await audit(tx, { action: "payment.succeeded", targetType: "invoice", targetId: p!.invoiceId, data: { reference, amountMinor: payment.amountMinor, channel: d.channel, mode: payment.mode } });
+      const [inv] = await tx.select({ customerOrgId: invoices.customerOrgId }).from(invoices).where(eq(invoices.id, p!.invoiceId));
+      return inv ?? null;
+    }
+    const orderId = payment.orderId!;
     const [o] = await tx
       .update(orders)
       .set({ paymentStatus: "paid", paidAt: new Date() })
-      .where(and(eq(orders.id, payment.orderId), eq(orders.paymentStatus, "unpaid")))
+      .where(and(eq(orders.id, orderId), eq(orders.paymentStatus, "unpaid")))
       .returning();
     if (!o) {
       // Order was already paid by an earlier transaction: money must go back to the customer.
-      await audit(tx, { action: "payment.duplicate_needs_refund", targetType: "order", targetId: payment.orderId, data: { reference, amountMinor: payment.amountMinor } });
+      await audit(tx, { action: "payment.duplicate_needs_refund", targetType: "order", targetId: orderId, data: { reference, amountMinor: payment.amountMinor } });
     }
     // A paid order keeps its stock until fulfilled or cancelled.
-    await clearReservationExpiry(tx, payment.orderId);
-    await audit(tx, { action: "payment.succeeded", targetType: "order", targetId: payment.orderId, data: { reference, amountMinor: payment.amountMinor, channel: d.channel, mode: payment.mode } });
+    await clearReservationExpiry(tx, orderId);
+    await audit(tx, { action: "payment.succeeded", targetType: "order", targetId: orderId, data: { reference, amountMinor: payment.amountMinor, channel: d.channel, mode: payment.mode } });
     return o ?? null;
   });
-  if (order) publish({ topic: "orders", orgIds: [order.customerOrgId] });
+  if (order) {
+    publish({ topic: "orders", orgIds: [order.customerOrgId] });
+    publish({ topic: "invoices", orgIds: [order.customerOrgId] });
+    announce();
+  }
   return "applied" as const;
 }

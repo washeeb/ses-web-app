@@ -6,7 +6,7 @@ import { acceptQuote, declineQuote } from "@/server/modules/sales";
 import { run, str, type ActionState } from "@/server/web/actions";
 import { appUrl, requireActor } from "@/server/web/session";
 import { redirect } from "next/navigation";
-import { startPaystackCheckout } from "@/server/modules/payments/paystack";
+import { startInvoicePayment, startPaystackCheckout } from "@/server/modules/payments/paystack";
 
 export async function respondToQuote(_: ActionState, fd: FormData): Promise<ActionState> {
   const actor = await requireActor("customer");
@@ -28,6 +28,16 @@ export async function payOrderAction(_: ActionState, fd: FormData): Promise<Acti
   let url = "";
   const r = await run(async () => {
     url = await startPaystackCheckout(getDb(), actor, str(fd, "id"), appUrl());
+  });
+  if (!r.ok) return r;
+  redirect(url);
+}
+
+export async function payInvoiceAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const actor = await requireActor("customer");
+  let url = "";
+  const r = await run(async () => {
+    url = await startInvoicePayment(getDb(), actor, str(fd, "id"), appUrl());
   });
   if (!r.ok) return r;
   redirect(url);

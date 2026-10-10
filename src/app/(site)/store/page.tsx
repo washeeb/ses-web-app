@@ -24,7 +24,7 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
       </div>
       {anyDemo && (
         <div className="mt-4">
-          <DemoNotice>Listings marked “Demonstration” are sample products and prices. Online checkout opens in a later release; request a quotation to buy.</DemoNotice>
+          <DemoNotice>Listings marked “Demonstration” are sample products and prices for evaluation.</DemoNotice>
         </div>
       )}
       <form className="mt-6 grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-[2fr_1fr_1fr_auto]" role="search">

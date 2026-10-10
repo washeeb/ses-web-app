@@ -8,14 +8,15 @@ import { AppError } from "@/server/lib/errors";
 import { listPayments, paystackConfig, verifyAndApplyPayment } from "@/server/modules/payments/paystack";
 import { log } from "@/server/lib/log";
 import { ActionForm } from "@/components/action-form";
-import { Badge, Card, DateTime, Money, PageHeader, StatusBadge, TableWrap } from "@/components/ui";
+import { Card, DateTime, Money, PageHeader, StatusBadge, TableWrap } from "@/components/ui";
 import { LiveRefresh } from "@/components/live-refresh";
 import { payOrderAction } from "../../actions";
 import { DocumentsPanel } from "@/components/documents-panel";
+import { invoiceForOrder } from "@/server/modules/invoices";
 
-export default async function PortalOrderPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ payment?: string }> }) {
+export default async function PortalOrderPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ payment?: string; placed?: string }> }) {
   const { id } = await params;
-  const { payment: returnedRef } = await searchParams;
+  const { payment: returnedRef, placed } = await searchParams;
   const actor = await requireActor("customer");
   const db = getDb();
   let o = await getOrder(db, actor, id).catch((e) => {
@@ -39,6 +40,8 @@ export default async function PortalOrderPage({ params, searchParams }: { params
   }
 
   const cfg = paystackConfig();
+  const invoice = await invoiceForOrder(db, o.id);
+  const seeInvoice = !!invoice && can(actor, "customer.invoices.read", { organizationId: o.customerOrgId });
   const canPay = !!cfg && o.paymentStatus !== "paid" && ["pending", "confirmed"].includes(o.status) && can(actor, "customer.orders.pay", { organizationId: o.customerOrgId });
   return (
     <>
@@ -51,7 +54,7 @@ export default async function PortalOrderPage({ params, searchParams }: { params
             <>
               <LiveRefresh topics={["orders"]} />
               <StatusBadge status={o.status} />
-              {o.paymentStatus === "paid" ? <Badge tone="green">paid</Badge> : <Badge tone="amber">unpaid</Badge>}
+              <StatusBadge status={o.paymentStatus} />
               {o.status === "fulfilled" && can(actor, "customer.returns.request", { organizationId: o.customerOrgId }) && (
                 <Link href={`/portal/orders/${o.id}/return`} className="btn btn-ghost">Return or claim warranty</Link>
               )}
@@ -59,6 +62,11 @@ export default async function PortalOrderPage({ params, searchParams }: { params
           }
         />
       </div>
+      {placed && !returnNote && (
+        <p role="status" className="mb-4 rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
+          Thank you — order {o.number} is placed{invoice ? <> and invoice {invoice.number} has been issued</> : null}. We will confirm it shortly.
+        </p>
+      )}
       {returnNote && <p role="status" className="mb-4 rounded-lg bg-slate-100 px-4 py-2 text-sm">{returnNote}</p>}
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <Card>
@@ -81,16 +89,21 @@ export default async function PortalOrderPage({ params, searchParams }: { params
         </Card>
         <div className="min-w-0 space-y-6">
         <Card title="Payment">
+          {seeInvoice && (
+            <p className="mb-3 text-sm">
+              Invoice <Link href={`/portal/invoices/${invoice.id}`} className="font-medium text-teal-700">{invoice.number}</Link> · <StatusBadge status={invoice.status} />
+            </p>
+          )}
           {o.paymentStatus === "paid" ? (
             <p className="text-sm">Paid <DateTime value={o.paidAt} />.</p>
           ) : canPay ? (
-            <ActionForm action={payOrderAction} submitLabel={<>Pay <Money minor={o.totalMinor} currency={o.currency} /></>} submitClassName="btn btn-accent w-full">
+            <ActionForm action={payOrderAction} submitLabel={<>Pay <Money minor={invoice ? invoice.totalMinor - invoice.paidMinor : o.totalMinor} currency={o.currency} /></>} submitClassName="btn btn-accent w-full">
               <input type="hidden" name="id" value={o.id} />
-              <p className="text-sm text-slate-600">Card or mobile money via Paystack. You will return here afterwards.</p>
+              <p className="text-sm text-slate-600">{o.paymentStatus === "part_paid" ? "Pays the remaining balance by card or mobile money" : "Card or mobile money"} via Paystack. You will return here afterwards.</p>
               {cfg?.mode === "test" && <p className="text-xs font-semibold text-amber-700">Test mode — no real money is charged.</p>}
             </ActionForm>
           ) : (
-            <p className="text-sm text-slate-600">{cfg ? "Online payment is not available for this order." : "Online payment is not available yet. Our team will send payment instructions."}</p>
+            <p className="text-sm text-slate-600">{cfg ? "Online payment is not available for this order." : "Online payment is not available yet. Pay by bank transfer or mobile money using the details on your invoice."}</p>
           )}
           {payments.length > 0 && (
             <ul className="mt-4 space-y-1 text-xs text-slate-500">

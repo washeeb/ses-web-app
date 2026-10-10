@@ -5,6 +5,7 @@ import { authorize, type Actor } from "../authz/policy";
 import { conflict, invalid, notFound } from "../lib/errors";
 import { audit } from "./audit";
 import { publish } from "./events";
+import { settleInvoicesForClosedOrder } from "./invoices";
 
 export type AvailabilityStatus = "in_stock" | "low_stock" | "out_of_stock" | "unconfirmed" | "not_tracked";
 
@@ -205,6 +206,7 @@ export async function expireReservations(db: DB, now = new Date()) {
       if (!order || order.status !== "pending") return;
       await releaseReservations(tx, orderId);
       await tx.update(orders).set({ status: "expired" }).where(eq(orders.id, orderId));
+      await settleInvoicesForClosedOrder(tx, orderId, "order expired: stock hold elapsed before confirmation");
       await audit(tx, { action: "order.expired", targetType: "order", targetId: orderId, data: { reason: "reservation hold elapsed" } });
     });
     publish({ topic: "orders" });

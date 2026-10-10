@@ -2,9 +2,11 @@ import { asc, desc, eq, inArray } from "drizzle-orm";
 import type { DB } from "../db/client";
 import {
   categories,
+  invoices,
   leads,
   orders,
   organizations,
+  payments,
   products,
   productVariants,
   purchaseOrders,
@@ -80,6 +82,8 @@ export const EXPORTS: Record<string, { label: string; perm: Permission }> = {
   stock: { label: "Stock by location", perm: "inventory.read" },
   "purchase-orders": { label: "Purchase orders", perm: "procurement.read" },
   returns: { label: "Returns & warranty claims", perm: "returns.manage" },
+  invoices: { label: "Invoices", perm: "finance.read" },
+  payments: { label: "Payments received", perm: "finance.read" },
 };
 
 const money = (minor: number | null | undefined) => (minor === null || minor === undefined ? "" : (minor / 100).toFixed(2));
@@ -141,6 +145,29 @@ export async function exportCsv(db: DB, actor: Actor, kind: string) {
         .orderBy(desc(purchaseOrders.createdAt));
       header = ["number", "created_at", "supplier", "status", "currency", "total", "expected_at", "sent_at"];
       rows = r.map(({ po, supplier }) => [po.number, po.createdAt, supplier, po.status, po.currency, money(po.totalMinor), po.expectedAt, po.sentAt]);
+      break;
+    }
+    case "invoices": {
+      const r = await db
+        .select({ i: invoices, customer: organizations.name, order: orders.number })
+        .from(invoices)
+        .innerJoin(organizations, eq(organizations.id, invoices.customerOrgId))
+        .leftJoin(orders, eq(orders.id, invoices.orderId))
+        .orderBy(desc(invoices.issuedAt));
+      header = ["number", "issued_at", "due_at", "customer", "order", "status", "currency", "subtotal", "discount", "tax", "total", "paid", "balance", "customer_reference"];
+      rows = r.map(({ i, customer, order }) => [i.number, i.issuedAt, i.dueAt, customer, order, i.status, i.currency, money(i.subtotalMinor), money(i.discountMinor), money(i.taxMinor), money(i.totalMinor), money(i.paidMinor), money(i.status === "void" ? 0 : i.totalMinor - i.paidMinor), i.customerReference]);
+      break;
+    }
+    case "payments": {
+      const r = await db
+        .select({ p: payments, invoice: invoices.number, customer: organizations.name })
+        .from(payments)
+        .innerJoin(invoices, eq(invoices.id, payments.invoiceId))
+        .innerJoin(organizations, eq(organizations.id, invoices.customerOrgId))
+        .where(inArray(payments.status, ["success", "reversed"]))
+        .orderBy(desc(payments.paidAt));
+      header = ["paid_at", "invoice", "customer", "status", "provider", "method", "amount", "currency", "reference", "external_reference", "mode"];
+      rows = r.map(({ p, invoice, customer }) => [p.paidAt, invoice, customer, p.status, p.provider, p.method, money(p.amountMinor), p.currency, p.reference, p.externalReference, p.mode]);
       break;
     }
     default: {

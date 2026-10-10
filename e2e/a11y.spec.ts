@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { expectAccessible, watchCsp } from "./helpers";
 import { STATE } from "./auth.setup";
 
-const PUBLIC = ["/", "/services", "/store", "/store/business-laptop-14", "/partners", "/case-studies", "/contact", "/privacy", "/login", "/forgot-password"];
+const PUBLIC = ["/", "/services", "/store", "/store/business-laptop-14", "/store/cart", "/partners", "/case-studies", "/contact", "/privacy", "/login", "/forgot-password"];
 
 test.describe("public pages", () => {
   for (const path of PUBLIC) {
@@ -18,7 +18,7 @@ test.describe("public pages", () => {
 
 test.describe("staff pages (sales officer)", () => {
   test.use({ storageState: STATE.sales });
-  for (const path of ["/ops", "/ops/leads", "/ops/quotes", "/ops/quotes/new", "/ops/orders", "/ops/catalogue", "/ops/returns", "/ops/notifications", "/ops/departments"]) {
+  for (const path of ["/ops", "/ops/leads", "/ops/quotes", "/ops/quotes/new", "/ops/orders", "/ops/catalogue", "/ops/returns", "/ops/notifications", "/ops/departments", "/ops/customers", "/ops/invoices"]) {
     test(`${path} is accessible`, async ({ page }) => {
       const csp = watchCsp(page);
       await page.goto(path);
@@ -31,7 +31,7 @@ test.describe("staff pages (sales officer)", () => {
 
 test.describe("customer pages", () => {
   test.use({ storageState: STATE.customer });
-  for (const path of ["/portal", "/portal/returns", "/portal/notifications"]) {
+  for (const path of ["/portal", "/portal/invoices", "/portal/returns", "/portal/notifications"]) {
     test(`${path} is accessible`, async ({ page }) => {
       await page.goto(path);
       await expect(page.locator("main h1")).toBeVisible();

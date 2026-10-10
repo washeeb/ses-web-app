@@ -7,7 +7,7 @@ import { NotificationBell } from "./notifications";
 export function PortalShell({ actor, title, nav, children }: { actor: Actor; title: string; nav: { href: string; label: string }[]; children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-slate-200 bg-white print:hidden">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-4">
             <Logo href={nav[0]?.href ?? "/"} />

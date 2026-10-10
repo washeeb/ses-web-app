@@ -46,6 +46,15 @@ Keep secrets in the host's secret manager, never in the repository or images.
   4. Record the time taken (RTO) and the backup age (RPO).
 - Local PGlite data lives in `.data/` and is disposable (`npm run db:reset -- --yes`).
 
+## Finance operations (M3a)
+
+- **Invoices** are issued automatically for every store order and accepted quotation (Company settings → payment terms, address, TIN, payment instructions). To correct one: void it (only possible while nothing is paid), then *Issue invoice* on the order.
+- **Manual payments** (bank transfer, mobile money, cash, cheque): Invoices → open the invoice → *Record a payment*. Needs `finance.write` and two-step verification. A wrong entry is reversed by a **different** finance user (with a reason). Everything is in the audit log.
+- **Online payments** (Paystack) apply to the invoice balance only after SES verifies them with Paystack. If money arrives for an invoice that is already settled or void, finance is notified (“needs a refund”); refund it in the Paystack dashboard.
+- **Cancelled/expired orders**: unpaid invoices are voided automatically; if money was received, finance is notified that a refund is due.
+- **Overdue reminders** go out daily after 08:00 (in-app + e-mail to the customer's invoice users), at most 3 per invoice, a week apart. They need the cron tick (shared hosting) or the worker running, and SMTP for e-mail.
+- **Exports**: Data exports → Invoices / Payments received (needs `data.export` + `finance.read`).
+
 ## Monitoring
 
 - `GET /api/health`: DB latency, queued, running and dead jobs. Alert if `status` ≠ ok, if `dead` > 0, or if `queued` keeps growing.

@@ -35,7 +35,19 @@ export default async function SettingsPage() {
               <Field label="Stock hold after acceptance (hours)" htmlFor="reservationHoldHours"><input id="reservationHoldHours" name="reservationHoldHours" type="number" className="field" defaultValue={s.reservationHoldHours} /></Field>
               <Field label="Support e-mail" htmlFor="supportEmail"><input id="supportEmail" name="supportEmail" type="email" className="field" defaultValue={s.supportEmail} /></Field>
               <Field label="Support phone" htmlFor="supportPhone"><input id="supportPhone" name="supportPhone" className="field" defaultValue={s.supportPhone} /></Field>
+              <Field label="Store order limit (GHS)" htmlFor="storeOrderLimit" hint="Carts at or above this total must go through a quotation."><input id="storeOrderLimit" name="storeOrderLimit" className="field" defaultValue={(s.storeOrderLimitMinor / 100).toFixed(2)} /></Field>
+              <Field label="Invoice payment terms (days)" htmlFor="invoiceDueDays"><input id="invoiceDueDays" name="invoiceDueDays" type="number" min={0} className="field" defaultValue={s.invoiceDueDays} /></Field>
             </div>
+            <fieldset className="rounded-lg border border-slate-200 p-3">
+              <legend className="px-1 text-sm font-semibold">Invoice details</legend>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Business address" htmlFor="companyAddress"><input id="companyAddress" name="companyAddress" className="field" defaultValue={s.companyAddress} maxLength={300} /></Field>
+                <Field label="GRA taxpayer ID (TIN)" htmlFor="companyTin" hint="Printed on invoices once set."><input id="companyTin" name="companyTin" className="field" defaultValue={s.companyTin} maxLength={40} /></Field>
+              </div>
+              <div className="mt-4">
+                <Field label="Payment instructions" htmlFor="paymentInstructions" hint="Bank account or mobile money details shown on every invoice."><textarea id="paymentInstructions" name="paymentInstructions" rows={3} className="field" defaultValue={s.paymentInstructions} maxLength={1000} /></Field>
+              </div>
+            </fieldset>
             <fieldset className="rounded-lg border border-slate-200 p-3">
               <legend className="px-1 text-sm font-semibold">Data Protection Commission (Ghana)</legend>
               <p className="mb-3 text-xs text-slate-600">Once registered, enter the certificate details. The number appears on the privacy notice and site footer, and administrators are reminded 60 days before expiry.</p>

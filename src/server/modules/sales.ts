@@ -27,6 +27,7 @@ import { clearReservationExpiry, consumeReservations, releaseReservations, reser
 import { activeTaxes, getSettings, nextNumber, operatorOrgId } from "./settings";
 import { announce, customerRecipients, notifyApprovers, notifyPermission, notifyUsers } from "./notifications";
 import { createWarrantiesForOrder } from "./returns";
+import { issueInvoiceForOrder, settleInvoicesForClosedOrder } from "./invoices";
 
 // ───────────────────────────── Enquiries & leads ─────────────────────────────
 
@@ -338,7 +339,9 @@ export async function acceptQuote(db: DB, actor: Actor, id: string, now = new Da
         discountMinor: q.discountMinor,
         taxMinor: q.taxMinor,
         totalMinor: q.totalMinor,
+        taxBreakdown: q.taxBreakdown,
         createdBy: actor.userId,
+        isDemo: q.isDemo,
       })
       .returning();
     const variantIds = lines.flatMap((l) => (l.variantId ? [l.variantId] : []));
@@ -355,16 +358,19 @@ export async function acceptQuote(db: DB, actor: Actor, id: string, now = new Da
         description: l.description,
         quantity: l.quantity,
         unitPriceMinor: l.unitPriceMinor,
+        taxable: l.taxable,
         lineTotalMinor: l.lineTotalMinor,
         fulfilmentConnectionId: allocations.find((a) => a.variantId === l.variantId && a.connectionId)?.connectionId ?? null,
       })),
     );
     await tx.update(quotes).set({ status: "accepted", acceptedAt: now, acceptedBy: actor.userId }).where(eq(quotes.id, id));
+    await issueInvoiceForOrder(tx, o!.id, { actor: null, now });
     await audit(tx, { actor, action: "quote.accepted", targetType: "quote", targetId: id, data: { orderId: o!.id, orderNumber: o!.number } });
     await notifyPermission(tx, "orders.write", { title: `New order ${o!.number}`, body: `Quotation ${q.number} was accepted. Confirm the order.`, link: `/ops/orders/${o!.id}` });
     return o!;
   });
   publish({ topic: "orders", orgIds: [order.customerOrgId] });
+  publish({ topic: "invoices", orgIds: [order.customerOrgId] });
   publish({ topic: "stock" });
   announce();
   return order;
@@ -491,6 +497,7 @@ export async function cancelOrder(db: DB, actor: Actor, id: string, reason: stri
     if (!["pending", "confirmed"].includes(o.status)) throw conflict("This order can no longer be cancelled.");
     await releaseReservations(tx, id);
     if (o.status === "confirmed") await requestPartnerFulfilment(tx, id, "order.cancelled");
+    await settleInvoicesForClosedOrder(tx, id, `order cancelled: ${reason.trim()}`);
     await tx.update(orders).set({ status: "cancelled" }).where(eq(orders.id, id));
     await audit(tx, { actor, action: "order.cancelled", targetType: "order", targetId: id, data: { reason } });
     await notifyUsers(tx, await customerRecipients(tx, "customer.orders.read", o.customerOrgId), { title: `Order ${o.number} cancelled`, body: reason, link: `/portal/orders/${id}` });

@@ -5,6 +5,8 @@ import { getStoreProduct, PRODUCT_TYPE_LABEL } from "@/server/modules/catalogue"
 import { Badge, DemoNotice, Money } from "@/components/ui";
 import { AvailabilityBadge } from "@/components/availability";
 import { LiveRefresh } from "@/components/live-refresh";
+import { ActionForm } from "@/components/action-form";
+import { addToCartAction } from "../cart-actions";
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -41,12 +43,22 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               </p>
               <p className="text-xs text-slate-500">excl. taxes</p>
             </div>
-            <Link className="btn btn-accent" href={`/contact?service=${encodeURIComponent("Store / products")}&product=${encodeURIComponent(`${p.name} — ${v.name} (${v.sku})`)}`}>
-              Request quotation
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              {v.availability.purchasable && (
+                <ActionForm action={addToCartAction} inline submitLabel={<>Add to cart<span className="sr-only">: {v.name}</span></>} submitClassName="btn btn-accent">
+                  <input type="hidden" name="variantId" value={v.id} />
+                  <label htmlFor={`qty-${v.id}`} className="sr-only">Quantity of {v.name}</label>
+                  <input id={`qty-${v.id}`} name="quantity" type="number" min={1} max={v.tracksStock ? Math.min(999, v.availability.available) : 999} defaultValue={1} className="field w-20" />
+                </ActionForm>
+              )}
+              <Link className="btn btn-ghost" href={`/contact?service=${encodeURIComponent("Store / products")}&product=${encodeURIComponent(`${p.name} — ${v.name} (${v.sku})`)}`}>
+                Request quotation<span className="sr-only">: {v.name}</span>
+              </Link>
+            </div>
           </li>
         ))}
       </ul>
+      <p className="mt-4 text-sm"><Link href="/store/cart" className="font-medium text-teal-700 underline">View your cart</Link></p>
       <p className="mt-3 text-xs text-slate-500">
         Stock shown as “to be confirmed” comes from a partner whose latest update is older than our freshness limit; we confirm it before accepting an order.
       </p>

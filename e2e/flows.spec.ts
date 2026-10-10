@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signIn } from "./helpers";
+import { expectAccessible, signIn, signInWithMfa } from "./helpers";
 import { STATE } from "./auth.setup";
 
 test("visitor can send an enquiry and gets a reference", async ({ page }) => {
@@ -45,4 +45,35 @@ test("privileged users must set up two-step verification with a QR code", async 
   await signIn(page, "exec@ses.demo");
   await expect(page).toHaveURL(/\/account\/mfa/);
   await expect(page.getByRole("img", { name: /QR code/ })).toBeVisible();
+});
+
+test("visitor fills a cart and sends it as a quotation request", async ({ page }) => {
+  await page.goto("/store/business-laptop-14");
+  await page.getByLabel(/^Quantity of Core i5/).fill("3");
+  await page.getByRole("button", { name: /Add to cart.*Core i5/ }).click();
+  await expect(page.getByRole("status")).toContainText("Added to your cart");
+  await expect(page.getByRole("link", { name: "Cart (3)" }).first()).toBeVisible();
+  await page.goto("/store/cart");
+  await expect(page.getByText("GHS 45,000.00")).toBeVisible(); // 3 × 12,500 + 20% taxes
+  await page.getByLabel("Your name").fill("E2E Cart Visitor");
+  await page.getByLabel("E-mail").fill("e2e.cart@example.com");
+  await page.getByRole("button", { name: "Request quotation" }).click();
+  await expect(page.getByRole("status")).toContainText(/reference is L-\d{4}-\d{5}/);
+  await expect(page.getByRole("link", { name: "Cart", exact: true }).first()).toBeVisible();
+});
+
+test("customer administrator orders from the store and receives an invoice", async ({ page }) => {
+  await signInWithMfa(page, "buyer.admin@customer-a.demo");
+  await page.goto("/store/business-laptop-14");
+  await page.getByRole("button", { name: /Add to cart.*Core i5/ }).click();
+  await expect(page.getByRole("status")).toContainText("Added to your cart");
+  await page.goto("/store/cart");
+  await page.getByLabel("Your purchase order or reference (optional)").fill("E2E-PO-1");
+  await page.getByRole("button", { name: "Place order" }).click();
+  await page.waitForURL(/\/portal\/orders\/.+placed=1/);
+  await expect(page.getByText(/invoice INV-\d{4}-\d{5} has been issued/)).toBeVisible();
+  await page.getByRole("link", { name: /^INV-/ }).click();
+  await expect(page.getByRole("heading", { name: /^Invoice INV-/ }).first()).toBeVisible();
+  await expect(page.getByText("Your ref. E2E-PO-1")).toBeVisible();
+  await expectAccessible(page, "invoice page");
 });

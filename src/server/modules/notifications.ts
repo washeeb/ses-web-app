@@ -74,7 +74,7 @@ export async function markRead(db: DB, actor: Actor, id: string | null) {
 }
 
 /** Customer-organisation users who may see orders/quotes (for status updates). */
-export async function customerRecipients(db: DB, perm: "customer.orders.read" | "customer.quotes.read", organizationId: string, exclude?: string) {
+export async function customerRecipients(db: DB, perm: "customer.orders.read" | "customer.quotes.read" | "customer.invoices.read", organizationId: string, exclude?: string) {
   const ids = await usersWithPermission(db, perm, organizationId);
   return exclude ? ids.filter((i) => i !== exclude) : ids;
 }
