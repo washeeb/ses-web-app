@@ -11,6 +11,7 @@ import { ActionForm } from "@/components/action-form";
 import { Badge, Card, DateTime, Money, PageHeader, StatusBadge, TableWrap } from "@/components/ui";
 import { LiveRefresh } from "@/components/live-refresh";
 import { payOrderAction } from "../../actions";
+import { DocumentsPanel } from "@/components/documents-panel";
 
 export default async function PortalOrderPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ payment?: string }> }) {
   const { id } = await params;
@@ -69,6 +70,7 @@ export default async function PortalOrderPage({ params, searchParams }: { params
           </TableWrap>
           <p className="mt-4 text-right font-bold">Total <Money minor={o.totalMinor} currency={o.currency} /></p>
         </Card>
+        <div className="min-w-0 space-y-6">
         <Card title="Payment">
           {o.paymentStatus === "paid" ? (
             <p className="text-sm">Paid <DateTime value={o.paidAt} />.</p>
@@ -89,6 +91,8 @@ export default async function PortalOrderPage({ params, searchParams }: { params
             </ul>
           )}
         </Card>
+        <DocumentsPanel actor={actor} entityType="order" entityId={o.id} path={`/portal/orders/${o.id}`} />
+        </div>
       </div>
     </>
   );

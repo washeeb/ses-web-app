@@ -10,6 +10,7 @@ import { Badge, Card, DateTime, Money, PageHeader, StatusBadge, TableWrap } from
 import { LiveRefresh } from "@/components/live-refresh";
 import { orderAction } from "../../actions";
 import { listPayments } from "@/server/modules/payments/paystack";
+import { DocumentsPanel } from "@/components/documents-panel";
 
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -81,6 +82,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               </ul>
             )}
           </Card>
+          <DocumentsPanel actor={actor} entityType="order" entityId={o.id} path={`/ops/orders/${o.id}`} customerFacing />
           <Card title="Stock reservations">
             {holds.length === 0 ? (
               <p className="text-sm text-slate-500">No active holds.</p>

@@ -9,11 +9,13 @@ import { publish } from "./events";
 import { applyPrice } from "./catalogue";
 import { applyQuoteDecision } from "./sales";
 import { applyAssignment } from "./admin";
+import { applyPoDecision } from "./procurement";
 
 export const APPROVAL_TYPES: Record<string, { label: string; permission: Permission }> = {
   "quote.approval": { label: "Quotation", permission: "quotes.approve" },
   "price.change": { label: "Price change", permission: "catalogue.price.approve" },
   "permission.change": { label: "Permission change", permission: "permissions.manage" },
+  "po.approval": { label: "Purchase order", permission: "procurement.approve" },
 };
 
 export async function listApprovals(db: DB, actor: Actor, status: "pending" | "all" = "pending") {
@@ -50,6 +52,9 @@ export async function decideApproval(db: DB, actor: Actor, id: string, approve: 
           await applyPrice(tx, v.id, Number(payload.toMinor), { actor, source: String(payload.source ?? "approval"), approvalId: req.id });
           break;
         }
+        case "po.approval":
+          await applyPoDecision(tx, req.subjectId, true, actor.userId);
+          break;
         case "permission.change":
           if (payload.userId === actor.userId) throw forbidden("You cannot approve changes to your own permissions.");
           await applyAssignment(tx, {
@@ -62,6 +67,8 @@ export async function decideApproval(db: DB, actor: Actor, id: string, approve: 
       }
     } else if (req.type === "quote.approval") {
       await applyQuoteDecision(tx, req.subjectId, false, actor.userId);
+    } else if (req.type === "po.approval") {
+      await applyPoDecision(tx, req.subjectId, false, actor.userId);
     }
 
     await tx

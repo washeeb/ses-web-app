@@ -27,6 +27,7 @@ export default async function SettingsPage() {
               <Field label="Locale" htmlFor="locale"><input id="locale" name="locale" className="field" defaultValue={s.locale} /></Field>
               <Field label="Time zone" htmlFor="timezone"><input id="timezone" name="timezone" className="field" defaultValue={s.timezone} /></Field>
               <Field label="Quotation approval threshold (GHS)" htmlFor="quoteApprovalThreshold"><input id="quoteApprovalThreshold" name="quoteApprovalThreshold" className="field" defaultValue={(s.quoteApprovalThresholdMinor / 100).toFixed(2)} /></Field>
+              <Field label="Purchase order approval threshold (GHS)" htmlFor="poApprovalThreshold"><input id="poApprovalThreshold" name="poApprovalThreshold" className="field" defaultValue={(s.poApprovalThresholdMinor / 100).toFixed(2)} /></Field>
               <Field label="Max discount without approval (%)" htmlFor="maxDiscountPercent"><input id="maxDiscountPercent" name="maxDiscountPercent" type="number" step="0.5" className="field" defaultValue={s.maxDiscountBpWithoutApproval / 100} /></Field>
               <Field label="Price change needing approval (≥ %)" htmlFor="sensitivePricePercent"><input id="sensitivePricePercent" name="sensitivePricePercent" type="number" step="0.5" className="field" defaultValue={s.sensitivePriceChangeBp / 100} /></Field>
               <Field label="Quotation validity (days)" htmlFor="quoteValidityDays"><input id="quoteValidityDays" name="quoteValidityDays" type="number" className="field" defaultValue={s.quoteValidityDays} /></Field>

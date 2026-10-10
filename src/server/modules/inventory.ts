@@ -1,6 +1,6 @@
-import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import type { DB } from "../db/client";
-import { integrationConnections, orders, productVariants, stockLevels, stockLocations, stockReservations } from "../db/schema";
+import { integrationConnections, orders, productVariants, stockLevels, stockLocations, stockMovements, stockReservations } from "../db/schema";
 import { authorize, type Actor } from "../authz/policy";
 import { conflict, invalid, notFound } from "../lib/errors";
 import { audit } from "./audit";
@@ -123,6 +123,34 @@ export async function reserveForOrder(
   return allocations;
 }
 
+export interface MovementInput {
+  variantId: string;
+  locationId: string;
+  quantity: number;
+  reason: "receipt" | "adjustment" | "fulfilment" | "return";
+  refType?: string;
+  refId?: string;
+  note?: string;
+  actorUserId?: string | null;
+}
+
+/** Appends to the stock ledger (SES-managed locations only). Call inside the same transaction as the change. */
+export async function recordMovement(tx: DB, m: MovementInput) {
+  if (m.quantity === 0) return;
+  await tx.insert(stockMovements).values({ ...m, refType: m.refType ?? null, refId: m.refId ?? null, note: m.note ?? null, actorUserId: m.actorUserId ?? null });
+}
+
+export async function listMovements(db: DB, actor: Actor, variantId: string, limit = 25) {
+  authorize(actor, "inventory.read");
+  return db
+    .select({ m: stockMovements, locationName: stockLocations.name })
+    .from(stockMovements)
+    .innerJoin(stockLocations, eq(stockLocations.id, stockMovements.locationId))
+    .where(eq(stockMovements.variantId, variantId))
+    .orderBy(desc(stockMovements.createdAt))
+    .limit(limit);
+}
+
 async function settleReservations(tx: DB, orderId: string, mode: "release" | "consume") {
   const active = await tx
     .select()
@@ -141,6 +169,16 @@ async function settleReservations(tx: DB, orderId: string, mode: "release" | "co
       .update(stockReservations)
       .set({ status: mode === "consume" ? "consumed" : "released" })
       .where(eq(stockReservations.id, r.id));
+    if (mode === "consume") {
+      const [lvl] = await tx
+        .select({ locationId: stockLevels.locationId, connectionId: stockLocations.connectionId })
+        .from(stockLevels)
+        .innerJoin(stockLocations, eq(stockLocations.id, stockLevels.locationId))
+        .where(eq(stockLevels.id, r.stockLevelId));
+      if (lvl && !lvl.connectionId) {
+        await recordMovement(tx, { variantId: r.variantId, locationId: lvl.locationId, quantity: -r.quantity, reason: "fulfilment", refType: "order", refId: orderId });
+      }
+    }
   }
   return active.length;
 }
@@ -202,6 +240,14 @@ export async function adjustStock(db: DB, actor: Actor, input: { variantId: stri
     } else {
       await tx.insert(stockLevels).values({ variantId: input.variantId, locationId: input.locationId, onHand: input.onHand });
     }
+    await recordMovement(tx, {
+      variantId: input.variantId,
+      locationId: input.locationId,
+      quantity: input.onHand - (existing?.onHand ?? 0),
+      reason: "adjustment",
+      note: input.reason,
+      actorUserId: actor.userId,
+    });
     await audit(tx, {
       actor,
       action: "stock.adjusted",

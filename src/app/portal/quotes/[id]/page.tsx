@@ -9,6 +9,7 @@ import { ActionForm } from "@/components/action-form";
 import { Card } from "@/components/ui";
 import { QuoteView } from "@/components/quote-view";
 import { respondToQuote } from "../../actions";
+import { DocumentsPanel } from "@/components/documents-panel";
 
 export default async function PortalQuotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,6 +25,7 @@ export default async function PortalQuotePage({ params }: { params: Promise<{ id
       <Card>
         <QuoteView q={q} />
       </Card>
+      <DocumentsPanel actor={actor} entityType="quote" entityId={q.id} path={`/portal/quotes/${q.id}`} />
       {q.order && (
         <p className="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
           You accepted this quotation. <Link href={`/portal/orders/${q.order.id}`} className="font-semibold underline">View order {q.order.number}</Link>.

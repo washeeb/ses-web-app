@@ -9,6 +9,7 @@ import { ActionForm } from "@/components/action-form";
 import { Card, DateTime, PageHeader, StatusBadge } from "@/components/ui";
 import { QuoteView } from "@/components/quote-view";
 import { LiveRefresh } from "@/components/live-refresh";
+import { DocumentsPanel } from "@/components/documents-panel";
 import { sendQuoteAction, submitQuoteAction } from "../../actions";
 
 export default async function QuotePage({ params }: { params: Promise<{ id: string }> }) {
@@ -53,6 +54,7 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
         <Card>
           <QuoteView q={q} />
         </Card>
+        <div className="min-w-0 space-y-6">
         <Card title="Approval history">
           {q.approvals.length === 0 ? (
             <p className="text-sm text-slate-500">No approval was required.</p>
@@ -68,6 +70,8 @@ export default async function QuotePage({ params }: { params: Promise<{ id: stri
             </ul>
           )}
         </Card>
+        <DocumentsPanel actor={actor} entityType="quote" entityId={q.id} path={`/ops/quotes/${q.id}`} customerFacing />
+        </div>
       </div>
     </>
   );

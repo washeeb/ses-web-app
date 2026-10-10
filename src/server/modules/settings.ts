@@ -15,6 +15,8 @@ export const settingsSchema = z.object({
   quoteApprovalThresholdMinor: z.number().int().min(0),
   /** Discounts above this need approval (basis points). */
   maxDiscountBpWithoutApproval: z.number().int().min(0).max(10_000),
+  /** Purchase orders at or above this total need approval (minor units). */
+  poApprovalThresholdMinor: z.number().int().min(0),
   /** Manual price changes at or above this need approval (basis points of the old price). */
   sensitivePriceChangeBp: z.number().int().min(0).max(100_000),
   quoteValidityDays: z.number().int().min(1).max(365),
@@ -36,6 +38,7 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   timezone: "Africa/Accra",
   quoteApprovalThresholdMinor: 5_000_000, // GHS 50,000.00
   maxDiscountBpWithoutApproval: 1000, // 10%
+  poApprovalThresholdMinor: 2_000_000, // GHS 20,000.00
   sensitivePriceChangeBp: 1500, // 15%
   quoteValidityDays: 30,
   reservationHoldHours: 72,

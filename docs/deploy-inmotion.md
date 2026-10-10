@@ -128,7 +128,11 @@ MAIL_FROM="Synclytics Enterprise Systems <no-reply@synclyticsenterprisesystems.c
 
 PAYSTACK_SECRET_KEY=sk_test_...
 PAYSTACK_CHANNELS=card,mobile_money
+
+UPLOAD_DIR=/home/<cpanel-user>/ses-data/uploads
 ```
+
+> **Uploaded documents** are stored in `~/ses-data/uploads`, beside (never inside) `~/ses-app`, because each deployment replaces `~/ses-app`. Include `~/ses-data` in your cPanel backups together with the database.
 
 To generate the two secrets on your PC:
 ```bash

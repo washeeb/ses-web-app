@@ -34,8 +34,21 @@ const nextConfig: NextConfig = {
   // image library on the host (the bundle is built on Windows and runs on Linux).
   images: { unoptimized: true },
   poweredByHeader: false,
+  // Document uploads are capped at 8 MB in code; leave room for multipart overhead.
+  experimental: { serverActions: { bodySizeLimit: "9mb" } },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      // Site-wide headers for everything except document downloads…
+      { source: "/((?!api/documents/).*)", headers: securityHeaders },
+      // …which get a locked-down policy: nothing in a downloaded file may run, even if opened in the browser.
+      {
+        source: "/api/documents/:path*",
+        headers: [
+          ...securityHeaders.filter((h) => h.key !== "Content-Security-Policy"),
+          { key: "Content-Security-Policy", value: "default-src 'none'; sandbox; frame-ancestors 'none'" },
+        ],
+      },
+    ];
   },
 };
 

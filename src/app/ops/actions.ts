@@ -337,6 +337,7 @@ export async function updateSettingsAction(_: Prev, fd: FormData) {
       timezone: str(fd, "timezone"),
       quoteApprovalThresholdMinor: money(fd, "quoteApprovalThreshold"),
       maxDiscountBpWithoutApproval: percentToBp(str(fd, "maxDiscountPercent")),
+      poApprovalThresholdMinor: money(fd, "poApprovalThreshold"),
       sensitivePriceChangeBp: percentToBp(str(fd, "sensitivePricePercent")),
       quoteValidityDays: int(fd, "quoteValidityDays"),
       reservationHoldHours: int(fd, "reservationHoldHours"),

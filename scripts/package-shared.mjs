@@ -62,6 +62,10 @@ writeFileSync(
 );
 rmSync(path.join(out, ".env.local"), { force: true }); // never ship local secrets
 rmSync(path.join(out, ".env"), { force: true });
+// Guard: a broad file trace could pull source, tests, local data or secrets into the bundle.
+for (const p of [".env.local", ".env.production", ".env", ".data", "src", "tests", "logo", "scripts"]) {
+  if (existsSync(path.join(out, p))) throw new Error(`Refusing to package: unexpected "${p}" in the bundle (check for dynamic filesystem paths).`);
+}
 
 // 6. cPanel Git Version Control deployment hook (used when the deploy branch is cloned on the server).
 cpSync(path.join(root, "deploy-hooks"), path.join(out, "deploy-hooks"), { recursive: true });

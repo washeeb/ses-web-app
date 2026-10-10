@@ -301,8 +301,16 @@ Knowledge-base search, ticket classification and report summaries only. Permissi
 
 **M1 acceptance**: all tests green; a seeded user per role can sign in and sees only what their permissions allow; simulator events (including duplicates, out-of-order, bad signature, replay) produce the documented results; a quotation over the threshold cannot be approved by its creator; checkout cannot reserve more stock than is available.
 
-### M2 — Operations
-Procurement (requests, POs, goods receipt), warehouse moves, returns and warranties, document management with secure uploads, imports/exports (CSV), polling connector, reconciliation, notifications centre, privacy and retention tooling, Playwright + axe accessibility suite.
+### M2 — Operations *(in progress)*
+**M2a — done (2026-10-10):**
+- [x] Suppliers; purchase orders (draft → approval at/above `poApprovalThresholdMinor`, default GHS 20,000, never by the creator → sent, e-mailed to supplier → partially received / received; cancel before receipt)
+- [x] Goods receipt (GRN numbers) into SES locations, over-receipt refused, stock updated atomically
+- [x] Stock movement ledger (`stock_movements`): receipts, adjustments, fulfilment; shown on product pages
+- [x] Secure documents on orders, quotes, purchase orders and suppliers: content-type checked by magic bytes, 8 MB cap, no SVG/HTML, random storage names in UPLOAD_DIR (outside the app folder; production default ~/ses-data/uploads), attachment-only downloads with sandbox CSP, customer sharing per file (orders/quotes only), soft delete + audit
+- [x] Hourly retention clean-up (sessions, rate limits, reset tokens, finished jobs, sent mail, files of documents deleted > 90 days)
+- [x] New permissions: procurement.approve (privileged), procurement.receive, documents.read/write, customer.documents.read
+
+**M2b — next:** returns and warranties, CSV import/export (products, orders, leads), polling connector + reconciliation, notifications centre, Playwright + axe accessibility suite in CI, nonce-based CSP.
 
 ### M3 — Portals and commerce
 Store checkout and cart, invoices, payment adapters (Paystack/Hubtel/MoMo sandbox), subscriptions and renewals, projects, support tickets with SLA, service contracts, asset records, customer history.
@@ -347,6 +355,7 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 ## 14. Progress log
 
 - 2026-10-10 — Inspected the project folder (empty). Created this plan. Started M1.
+- 2026-10-10 — M2a built: procurement (suppliers, POs with approval, goods receipt), stock ledger, secure documents, retention clean-up. Found and fixed during the build: a dynamic upload path made the Next.js build trace the whole project (risk of shipping local files) — fixed with trace-ignore hints and a packaging guard that refuses bundles containing .env*/.data/src/tests; global CSP was overriding the download sandbox policy — split header rules. Deploy hook now also resyncs system permission sets. 58 tests passing.
 - 2026-10-10 — **Live** at https://synclyticsenterprisesystems.com (InMotion Power, Node 24.21, cPanel PostgreSQL 13/14). Fixes found during deployment: PG<15 compatibility (no NULLS NOT DISTINCT / gen_random_uuid; guarded by tests/postgres-compat.test.ts), DB connects via 127.0.0.1 after cPanel "Synchronize Grants", app-level http→https redirect (cPanel Force HTTPS unavailable behind nginx), deploy branch now append-only so cPanel can fast-forward. Verified externally: all public pages 200, /api/health ok, http→https 308, valid Let's Encrypt cert. Store empty until real products are added. Pending: first admin login, cron, SMTP test, Paystack test key.
 - 2026-10-10 — Source in private GitHub repo washeeb/ses-web-app (main). GitHub Actions "Build deploy bundle" (typecheck, lint, 47 tests, prod audit, Linux build) publishes to the `deploy` branch; cPanel Git Version Control tracks `deploy` and its .cpanel.yml runs deploy-hooks/cpanel-deploy.sh (copy to ~/ses-app keeping .env.production, migrate, restart). First run green. Server-side cPanel setup pending (docs/deploy-inmotion.md §3).
 - 2026-10-10 — MFA enrolment shows a server-generated QR code (setup key kept as fallback). DPC registration: settings fields (number, expiry), shown on privacy notice/footer when set, admin dashboard reminder when missing or within 60 days of expiry. Shared hosting support: standalone output, Passenger startup shim, bundled ops scripts (migrate/seed-reference/create-admin), secured cron tick endpoint, polling live-update mode, PGlite loaded lazily (never shipped to production). Local demo DB was found corrupted after an abrupt dev-server stop and was recreated (dev data only).

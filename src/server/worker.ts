@@ -1,6 +1,7 @@
 import type { DB } from "./db/client";
 import { log } from "./lib/log";
-import { runDueJobs, type JobHandlers } from "./modules/jobs";
+import { enqueue, runDueJobs, type JobHandlers } from "./modules/jobs";
+import { runMaintenance } from "./modules/maintenance";
 import { onInboundDead, processInboundEvent } from "./modules/integrations/inbound";
 import { deliverOutbound } from "./modules/integrations/outbound";
 import { expireReservations } from "./modules/inventory";
@@ -11,12 +12,17 @@ export const JOB_HANDLERS: JobHandlers = {
   "integration.inbound.process": (db, payload) => processInboundEvent(db, String(payload.inboundEventId)),
   "integration.outbound.deliver": (db, payload, job) => deliverOutbound(db, payload, job),
   "mail.send": (db, payload) => deliverMail(db, payload),
+  "maintenance.hourly": async (db) => {
+    await runMaintenance(db);
+  },
   "payment.paystack.verify": async (db, payload) => {
     await verifyAndApplyPayment(db, String(payload.reference));
   },
 };
 
 export async function tick(db: DB) {
+  // At most one clean-up per hour, whichever process or cron call gets there first.
+  await enqueue(db, { type: "maintenance.hourly", dedupeKey: `maintenance:${new Date().toISOString().slice(0, 13)}`, maxAttempts: 3 });
   const result = await runDueJobs(db, JOB_HANDLERS, {
     onDead: async (db, job, error) => {
       if (job.type === "integration.inbound.process") await onInboundDead(db, job, error);

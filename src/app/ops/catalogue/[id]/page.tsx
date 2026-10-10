@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getDb } from "@/server/db/client";
 import { requireActor } from "@/server/web/session";
 import { getProductAdmin, listCategories } from "@/server/modules/catalogue";
-import { listLocations } from "@/server/modules/inventory";
+import { listLocations, listMovements } from "@/server/modules/inventory";
 import { can } from "@/server/authz/policy";
 import { AppError } from "@/server/lib/errors";
 import { ActionForm } from "@/components/action-form";
@@ -23,6 +23,9 @@ export default async function ProductAdminPage({ params }: { params: Promise<{ i
   const [categories, locations] = await Promise.all([listCategories(db), listLocations(db)]);
   const sesLocations = locations.filter((l) => !l.connectionId);
   const { product: p, variants } = data;
+  const movements = can(actor, "inventory.read")
+    ? Object.fromEntries(await Promise.all(variants.filter((v) => v.tracksStock).map(async (v) => [v.id, await listMovements(db, actor, v.id, 10)] as const)))
+    : {};
   const canWrite = can(actor, "catalogue.write");
   const canAdjust = can(actor, "inventory.adjust");
   return (
@@ -79,6 +82,22 @@ export default async function ProductAdminPage({ params }: { params: Promise<{ i
                     </tbody>
                   </table>
                 </TableWrap>
+              )}
+              {(movements[v.id]?.length ?? 0) > 0 && (
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-sm text-teal-700">Recent stock movements</summary>
+                  <ul className="mt-2 space-y-1 text-xs">
+                    {movements[v.id]!.map(({ m, locationName }) => (
+                      <li key={m.id} className="flex flex-wrap justify-between gap-2">
+                        <span>
+                          <strong className={m.quantity > 0 ? "text-emerald-700" : "text-red-700"}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</strong> {m.reason} · {locationName}
+                          {m.note && <span className="text-slate-500"> — {m.note}</span>}
+                        </span>
+                        <Ago value={m.createdAt} />
+                      </li>
+                    ))}
+                  </ul>
+                </details>
               )}
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 {canWrite && (
