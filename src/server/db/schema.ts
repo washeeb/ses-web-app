@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import {
   bigint,
   boolean,
@@ -12,10 +13,16 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
-const id = () => uuid("id").primaryKey().defaultRandom();
+// Compatibility: the production host runs PostgreSQL older than 15 (and possibly older than 13),
+// so IDs are generated in the app rather than with gen_random_uuid(), and no PG15-only syntax is used.
+const id = () =>
+  uuid("id")
+    .primaryKey()
+    .$defaultFn(() => randomUUID());
 const ts = (name: string) => timestamp(name, { withTimezone: true });
 const createdAt = () => ts("created_at").notNull().defaultNow();
 const updatedAt = () =>
@@ -124,7 +131,15 @@ export const roleAssignments = pgTable(
     grantedBy: uuid("granted_by").references(() => users.id),
     createdAt: createdAt(),
   },
-  (t) => [unique().on(t.userId, t.permissionSetId, t.organizationId, t.departmentId).nullsNotDistinct()],
+  // One grant per user/set/organisation/department; NULL department treated as a value (works before PostgreSQL 15).
+  (t) => [
+    uniqueIndex("role_assignments_unique").on(
+      t.userId,
+      t.permissionSetId,
+      t.organizationId,
+      sql`coalesce(${t.departmentId}, '00000000-0000-0000-0000-000000000000'::uuid)`,
+    ),
+  ],
 );
 
 export const rateLimits = pgTable("rate_limits", {

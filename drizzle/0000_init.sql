@@ -1,7 +1,7 @@
 CREATE TYPE "public"."org_type" AS ENUM('operator', 'customer', 'partner');--> statement-breakpoint
 CREATE TYPE "public"."product_type" AS ENUM('hardware', 'software_licence', 'subscription', 'service_package');--> statement-breakpoint
 CREATE TABLE "api_credentials" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"connection_id" uuid,
 	"name" text NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE "api_credentials" (
 );
 --> statement-breakpoint
 CREATE TABLE "approval_requests" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"type" text NOT NULL,
 	"subject_type" text NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE "approval_requests" (
 );
 --> statement-breakpoint
 CREATE TABLE "audit_log" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"at" timestamp with time zone DEFAULT now() NOT NULL,
 	"actor_user_id" uuid,
 	"actor_org_id" uuid,
@@ -47,7 +47,7 @@ CREATE TABLE "audit_log" (
 );
 --> statement-breakpoint
 CREATE TABLE "categories" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"slug" text NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
@@ -64,7 +64,7 @@ CREATE TABLE "currencies" (
 );
 --> statement-breakpoint
 CREATE TABLE "departments" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"key" text NOT NULL,
 	"name" text NOT NULL,
@@ -75,7 +75,7 @@ CREATE TABLE "departments" (
 );
 --> statement-breakpoint
 CREATE TABLE "inbound_events" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"connection_id" uuid NOT NULL,
 	"event_id" text NOT NULL,
 	"type" text NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE "inbound_events" (
 );
 --> statement-breakpoint
 CREATE TABLE "integration_connections" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"partner_org_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"mode" text NOT NULL,
@@ -109,7 +109,7 @@ CREATE TABLE "integration_connections" (
 );
 --> statement-breakpoint
 CREATE TABLE "jobs" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"type" text NOT NULL,
 	"payload" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"status" text DEFAULT 'queued' NOT NULL,
@@ -125,7 +125,7 @@ CREATE TABLE "jobs" (
 );
 --> statement-breakpoint
 CREATE TABLE "leads" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"number" text NOT NULL,
 	"source" text DEFAULT 'website' NOT NULL,
 	"contact_name" text NOT NULL,
@@ -145,17 +145,18 @@ CREATE TABLE "leads" (
 );
 --> statement-breakpoint
 CREATE TABLE "mail_outbox" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"to" text NOT NULL,
 	"subject" text NOT NULL,
 	"body" text NOT NULL,
 	"adapter" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"sent_at" timestamp with time zone
+	"sent_at" timestamp with time zone,
+	"last_error" text
 );
 --> statement-breakpoint
 CREATE TABLE "order_lines" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"order_id" uuid NOT NULL,
 	"variant_id" uuid,
 	"description" text NOT NULL,
@@ -168,7 +169,7 @@ CREATE TABLE "order_lines" (
 );
 --> statement-breakpoint
 CREATE TABLE "orders" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"number" text NOT NULL,
 	"customer_org_id" uuid NOT NULL,
 	"quote_id" uuid,
@@ -179,6 +180,8 @@ CREATE TABLE "orders" (
 	"tax_minor" bigint NOT NULL,
 	"total_minor" bigint NOT NULL,
 	"created_by" uuid,
+	"payment_status" text DEFAULT 'unpaid' NOT NULL,
+	"paid_at" timestamp with time zone,
 	"is_demo" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -186,7 +189,7 @@ CREATE TABLE "orders" (
 );
 --> statement-breakpoint
 CREATE TABLE "organizations" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"type" "org_type" NOT NULL,
 	"name" text NOT NULL,
 	"slug" text NOT NULL,
@@ -199,7 +202,7 @@ CREATE TABLE "organizations" (
 );
 --> statement-breakpoint
 CREATE TABLE "password_reset_tokens" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"user_id" uuid NOT NULL,
 	"token_hash" text NOT NULL,
 	"expires_at" timestamp with time zone NOT NULL,
@@ -208,8 +211,27 @@ CREATE TABLE "password_reset_tokens" (
 	CONSTRAINT "password_reset_tokens_token_hash_unique" UNIQUE("token_hash")
 );
 --> statement-breakpoint
+CREATE TABLE "payments" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"order_id" uuid NOT NULL,
+	"provider" text NOT NULL,
+	"reference" text NOT NULL,
+	"amount_minor" bigint NOT NULL,
+	"currency" text NOT NULL,
+	"status" text DEFAULT 'initialized' NOT NULL,
+	"mode" text NOT NULL,
+	"provider_transaction_id" text,
+	"channel" text,
+	"paid_at" timestamp with time zone,
+	"failure_reason" text,
+	"initiated_by" uuid,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "payments_reference_unique" UNIQUE("reference")
+);
+--> statement-breakpoint
 CREATE TABLE "permission_sets" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"organization_id" uuid,
 	"key" text NOT NULL,
 	"name" text NOT NULL,
@@ -221,7 +243,7 @@ CREATE TABLE "permission_sets" (
 );
 --> statement-breakpoint
 CREATE TABLE "product_mappings" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"connection_id" uuid NOT NULL,
 	"partner_sku" text NOT NULL,
 	"variant_id" uuid NOT NULL,
@@ -236,7 +258,7 @@ CREATE TABLE "product_mappings" (
 );
 --> statement-breakpoint
 CREATE TABLE "product_variants" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"product_id" uuid NOT NULL,
 	"sku" text NOT NULL,
 	"name" text NOT NULL,
@@ -253,7 +275,7 @@ CREATE TABLE "product_variants" (
 );
 --> statement-breakpoint
 CREATE TABLE "products" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"slug" text NOT NULL,
 	"name" text NOT NULL,
 	"summary" text,
@@ -269,7 +291,7 @@ CREATE TABLE "products" (
 );
 --> statement-breakpoint
 CREATE TABLE "quote_lines" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"quote_id" uuid NOT NULL,
 	"variant_id" uuid,
 	"description" text NOT NULL,
@@ -281,7 +303,7 @@ CREATE TABLE "quote_lines" (
 );
 --> statement-breakpoint
 CREATE TABLE "quotes" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"number" text NOT NULL,
 	"customer_org_id" uuid NOT NULL,
 	"lead_id" uuid,
@@ -315,14 +337,13 @@ CREATE TABLE "rate_limits" (
 );
 --> statement-breakpoint
 CREATE TABLE "role_assignments" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"user_id" uuid NOT NULL,
 	"permission_set_id" uuid NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"department_id" uuid,
 	"granted_by" uuid,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "role_assignments_user_id_permission_set_id_organization_id_department_id_unique" UNIQUE NULLS NOT DISTINCT("user_id","permission_set_id","organization_id","department_id")
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "sequences" (
@@ -331,7 +352,7 @@ CREATE TABLE "sequences" (
 );
 --> statement-breakpoint
 CREATE TABLE "sessions" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"user_id" uuid NOT NULL,
 	"token_hash" text NOT NULL,
 	"mfa_verified" boolean DEFAULT false NOT NULL,
@@ -354,7 +375,7 @@ CREATE TABLE "settings" (
 );
 --> statement-breakpoint
 CREATE TABLE "stock_levels" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"variant_id" uuid NOT NULL,
 	"location_id" uuid NOT NULL,
 	"on_hand" integer DEFAULT 0 NOT NULL,
@@ -367,7 +388,7 @@ CREATE TABLE "stock_levels" (
 );
 --> statement-breakpoint
 CREATE TABLE "stock_locations" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"code" text NOT NULL,
 	"name" text NOT NULL,
 	"organization_id" uuid NOT NULL,
@@ -376,7 +397,7 @@ CREATE TABLE "stock_locations" (
 );
 --> statement-breakpoint
 CREATE TABLE "stock_reservations" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"stock_level_id" uuid NOT NULL,
 	"variant_id" uuid NOT NULL,
 	"order_id" uuid NOT NULL,
@@ -388,7 +409,7 @@ CREATE TABLE "stock_reservations" (
 );
 --> statement-breakpoint
 CREATE TABLE "tax_rates" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"code" text NOT NULL,
 	"name" text NOT NULL,
@@ -400,7 +421,7 @@ CREATE TABLE "tax_rates" (
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"email" text NOT NULL,
 	"name" text NOT NULL,
@@ -437,6 +458,8 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_quote_id_quotes_id_fk" FOREIGN KEY (
 ALTER TABLE "orders" ADD CONSTRAINT "orders_currency_currencies_code_fk" FOREIGN KEY ("currency") REFERENCES "public"."currencies"("code") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "orders" ADD CONSTRAINT "orders_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "password_reset_tokens" ADD CONSTRAINT "password_reset_tokens_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "payments" ADD CONSTRAINT "payments_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "payments" ADD CONSTRAINT "payments_initiated_by_users_id_fk" FOREIGN KEY ("initiated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "permission_sets" ADD CONSTRAINT "permission_sets_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_mappings" ADD CONSTRAINT "product_mappings_connection_id_integration_connections_id_fk" FOREIGN KEY ("connection_id") REFERENCES "public"."integration_connections"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_mappings" ADD CONSTRAINT "product_mappings_variant_id_product_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."product_variants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -472,5 +495,7 @@ CREATE INDEX "audit_log_at_index" ON "audit_log" USING btree ("at");--> statemen
 CREATE INDEX "audit_log_target_type_target_id_index" ON "audit_log" USING btree ("target_type","target_id");--> statement-breakpoint
 CREATE INDEX "inbound_events_connection_id_status_index" ON "inbound_events" USING btree ("connection_id","status");--> statement-breakpoint
 CREATE INDEX "jobs_status_run_at_index" ON "jobs" USING btree ("status","run_at");--> statement-breakpoint
+CREATE INDEX "payments_order_id_index" ON "payments" USING btree ("order_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "role_assignments_unique" ON "role_assignments" USING btree ("user_id","permission_set_id","organization_id",coalesce("department_id", '00000000-0000-0000-0000-000000000000'::uuid));--> statement-breakpoint
 CREATE INDEX "sessions_user_id_index" ON "sessions" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "stock_reservations_order_id_index" ON "stock_reservations" USING btree ("order_id");

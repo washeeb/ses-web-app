@@ -8,7 +8,7 @@
 |---|---|
 | Node.js | cPanel **Setup Node.js App** (Passenger) runs `passenger.cjs`, which starts the bundled Next.js server |
 | Build | GitHub Actions builds on every push to `main` and publishes to the `deploy` branch; cPanel Git Version Control pulls it. No `npm install` or build on the server |
-| Database | cPanel **PostgreSQL Databases** (on the same server) |
+| Database | cPanel **PostgreSQL Databases** (on the same server; older than PostgreSQL 15, so migrations avoid newer syntax — guarded by tests/postgres-compat.test.ts). Connect via `127.0.0.1` after **Synchronize Grants** |
 | Background jobs (partner events, e-mail, payment checks, stock-hold expiry) | Run inside the app while it is awake, **plus a cPanel cron job** calling `/api/cron/tick` every 5 minutes, because Passenger may stop an idle app |
 | Live page updates | Pages refresh every 30 s (polling) instead of streaming, to avoid tying up the plan's limited processes |
 | E-mail | Your cPanel mailbox over SMTP |
