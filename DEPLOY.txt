@@ -1,0 +1,2 @@
+Synclytics web app — shared hosting bundle. Follow docs/deploy-inmotion.md (Power plan section).
+Startup file: passenger.cjs · Node 22+ · environment variables set in cPanel (never upload .env.local).

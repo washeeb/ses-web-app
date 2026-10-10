@@ -1,0 +1,9 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/simulators/kingsview/inbox/route.js")
+R.c("server/chunks/[root-of-the-server]__07byw-j0-ayy5._.js")
+R.c("server/chunks/_0pzaocbgy_h_6._.js")
+R.c("server/chunks/_1vyq1e-493otu._.js")
+R.c("server/chunks/[root-of-the-server]__15bjnu5yieigz._.js")
+R.c("server/chunks/_0w9oq3tmbowbw._.js")
+R.c("server/chunks/1oeh_server_app_api_simulators_kingsview_inbox_route_actions_1x2lg2_4yo8ab.js")
+R.m(76375)
+module.exports=R.m(76375).exports

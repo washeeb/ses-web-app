@@ -1,0 +1,3 @@
+module.exports=[17533,a=>a.a(async(b,c)=>{try{var d=a.i(7997),e=a.i(62453),f=a.i(52208),g=b([e,f]);async function h({children:a}){let b=await (0,f.y)("partner","/partner");return(0,d.jsx)(e.f,{actor:b,title:"Partner portal",nav:[{href:"/partner",label:"Overview"}],children:a})}[e,f]=g.then?(await g)():g,a.s(["default",0,h]),c()}catch(a){c(a)}},!1),44210,function(a){a.n(a.i(17533))}];
+
+//# sourceMappingURL=src_app_partner_layout_tsx_08xh5z8ckcpa8._.js.map

@@ -1,0 +1,12 @@
+{
+  "name": "ses-web-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "db:migrate": "node ops/migrate.mjs",
+    "db:seed-reference": "NODE_ENV=production node ops/seed-reference.mjs",
+    "admin:create": "node ops/create-admin.mjs"
+  }
+}

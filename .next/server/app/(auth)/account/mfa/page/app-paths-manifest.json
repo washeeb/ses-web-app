@@ -1,0 +1,3 @@
+{
+  "/(auth)/account/mfa/page": "app/(auth)/account/mfa/page.js"
+}
