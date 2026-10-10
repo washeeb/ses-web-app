@@ -133,6 +133,8 @@ UPLOAD_DIR=/home/<cpanel-user>/ses-data/uploads
 ```
 
 > **Uploaded documents** are stored in `~/ses-data/uploads`, beside (never inside) `~/ses-app`, because each deployment replaces `~/ses-app`. Include `~/ses-data` in your cPanel backups together with the database.
+>
+> **Current backup setup (confirmed 2026-10-10):** InMotion *Backup Manager* (automatic, stored off-server) backs up *Home Directory & Mail* (which includes `~/ses-data` and `~/ses-app/.env.production`) and *PgSQL* every 3 days, all data, on a 10 GB allowance. Restores are in cPanel → Backup Manager → *Perform a Restore*.
 
 To generate the two secrets on your PC:
 ```bash
