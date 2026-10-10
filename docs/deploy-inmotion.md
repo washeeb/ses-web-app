@@ -46,12 +46,19 @@ How it works:
 
 One-time setup:
 
-1. **Give the server read access to the private repository.** cPanel → **SSH Access → Manage SSH Keys → Generate a New Key**:
-   - Key name: `id_rsa` (the default the server's Git uses).
-   - Leave the passphrase **empty**, because cPanel's Git cannot use keys with a passphrase.
-   - Then click **Manage → Authorize**, and **View/Download** the *public* key and copy it.
+1. **Give the server read access to the private repository.** cPanel's *SSH Access* key generator insists on a passphrase, and cPanel's Git cannot use a key that has one, so create the key in cPanel → **Terminal** instead:
+   ```bash
+   mkdir -p ~/.ssh && chmod 700 ~/.ssh && ssh-keygen -t ed25519 -N "" -C "inmotion-cpanel-deploy" -f ~/.ssh/id_ed25519
+   ```
+   ```bash
+   printf 'Host github.com\n  HostName github.com\n  User git\n  IdentityFile ~/.ssh/id_ed25519\n  IdentitiesOnly yes\n' >> ~/.ssh/config && chmod 600 ~/.ssh/config
+   ```
+   ```bash
+   cat ~/.ssh/id_ed25519.pub
+   ```
+   Copy the single line the last command prints; it starts with `ssh-ed25519`. Never share the private key file, the one without `.pub`.
 2. On GitHub → **washeeb/ses-web-app → Settings → Deploy keys → Add deploy key**: paste the public key, title it `InMotion cPanel`, and leave **Allow write access unticked**.
-3. In cPanel **Terminal**, run this once to trust GitHub's host key. Answer `yes`; it should greet you by repository name.
+3. In Terminal, run this once to trust GitHub's host key. Answer `yes`; it should greet you by repository name.
    ```bash
    ssh -T git@github.com
    ```
