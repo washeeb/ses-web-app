@@ -20,6 +20,8 @@ const NAV: { href: string; label: string; perm?: Permission | Permission[] }[] =
   { href: "/ops/assets", label: "Assets", perm: ["assets.manage", "support.read", "orders.read"] },
   { href: "/ops/returns", label: "Returns & warranty", perm: "orders.read" },
   { href: "/ops/approvals", label: "Approvals", perm: "approvals.read" },
+  { href: "/ops/reports", label: "Reports", perm: "reports.read" },
+  { href: "/ops/knowledge", label: "Knowledge base", perm: "kb.write" },
   { href: "/ops/catalogue", label: "Catalogue & stock", perm: "catalogue.read" },
   { href: "/ops/procurement", label: "Procurement", perm: "procurement.read" },
   { href: "/ops/integrations", label: "Partner integrations", perm: "integrations.read" },

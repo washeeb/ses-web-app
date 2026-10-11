@@ -97,6 +97,10 @@ MAIL_FROM="Synclytics Enterprise Systems <no-reply@synclyticsenterprisesystems.c
 
 PAYSTACK_SECRET_KEY=
 PAYSTACK_CHANNELS=card,mobile_money
+
+# Optional AI assistance (leave commented until SES decides; see docs/operations.md)
+# AI_PROVIDER=anthropic
+# ANTHROPIC_API_KEY=
 EOF
 echo "Created $F"; ls -l "$F"; fi
 ```

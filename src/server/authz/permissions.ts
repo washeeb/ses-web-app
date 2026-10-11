@@ -60,6 +60,8 @@ export const PERMISSIONS = {
   "hr.write": op("Manage HR records", true),
   "marketing.write": op("Manage marketing content"),
   "reports.read": op("View reports and dashboards"),
+  "kb.write": op("Write and publish knowledge-base articles"),
+  "ai.use": op("Use AI assistance (suggestions only; never acts on its own)"),
   // Integrations
   "integrations.read": op("View integration health"),
   "integrations.manage": op("Manage partner connections and credentials", true),

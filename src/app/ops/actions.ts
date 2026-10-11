@@ -347,6 +347,8 @@ export async function updateSettingsAction(_: Prev, fd: FormData) {
       renewalNoticeDays: int(fd, "renewalNoticeDays"),
       renewalGraceDays: int(fd, "renewalGraceDays"),
       ticketAutoCloseDays: int(fd, "ticketAutoCloseDays"),
+      aiEnabled: bool(fd, "aiEnabled"),
+      aiDailyLimitPerUser: int(fd, "aiDailyLimitPerUser"),
       storeOrderLimitMinor: money(fd, "storeOrderLimit"),
       companyAddress: str(fd, "companyAddress"),
       companyTin: str(fd, "companyTin"),

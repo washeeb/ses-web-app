@@ -17,6 +17,11 @@ export default async function PrivacyPage() {
         <p>We collect the details you give us in enquiry and account forms (name, e-mail, phone, organisation and your message) to respond to you and provide services.</p>
         <p>Account activity is logged for security, including sign-ins and changes to records. Access to personal data is limited to staff who need it.</p>
         <p>Online payments are processed by Paystack; we do not store card details. We do not sell personal data. Partner companies only receive what is needed to fulfil an order you place.</p>
+        {s.aiEnabled && (
+          <p>
+            Our support staff may use an AI service to suggest replies to support tickets. Only the text of your ticket is sent, with e-mail addresses and phone numbers removed; staff check every suggestion and the AI never acts on your account.
+          </p>
+        )}
         <p>
           To ask for a copy, correction or deletion of your data, contact <a className="text-teal-700 hover:underline" href={`mailto:${s.supportEmail}`}>{s.supportEmail}</a>.
         </p>

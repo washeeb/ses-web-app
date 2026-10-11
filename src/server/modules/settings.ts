@@ -40,6 +40,9 @@ export const settingsSchema = z.object({
   renewalGraceDays: z.number().int().min(0).max(60),
   /** Resolved tickets close automatically after this many days without a customer reply. */
   ticketAutoCloseDays: z.number().int().min(1).max(60),
+  /** AI assistance is off until switched on here AND a provider key is configured on the server. */
+  aiEnabled: z.boolean(),
+  aiDailyLimitPerUser: z.number().int().min(0).max(500),
   supportEmail: z.string().email(),
   supportPhone: z.string().max(40),
   /** Data Protection Commission (Ghana) registration — shown publicly once set. */
@@ -69,6 +72,8 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   renewalNoticeDays: 30,
   renewalGraceDays: 14,
   ticketAutoCloseDays: 7,
+  aiEnabled: false,
+  aiDailyLimitPerUser: 20,
   supportEmail: "support@synclyticsenterprisesystems.com",
   supportPhone: "+233 00 000 0000",
   dpcRegistrationNumber: "",

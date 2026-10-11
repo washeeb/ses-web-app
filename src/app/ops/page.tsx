@@ -26,11 +26,14 @@ export default async function OpsDashboard() {
     stats.wonValue30d !== null && { label: "Order value, last 30 days", value: <Money minor={stats.wonValue30d} />, href: "/ops/orders" },
     stats.pendingApprovals !== null && { label: "Pending approvals", value: stats.pendingApprovals, href: "/ops/approvals", tone: stats.pendingApprovals ? ("amber" as const) : undefined },
     stats.deadLetters !== null && { label: "Dead-lettered events", value: stats.deadLetters, href: "/ops/integrations", tone: stats.deadLetters ? ("red" as const) : undefined },
+    stats.openTickets !== null && { label: "Open support tickets", value: stats.openTickets, href: "/ops/support" },
+    stats.breachedTickets !== null && { label: "Tickets past SLA", value: stats.breachedTickets, href: "/ops/support?show=breached", tone: stats.breachedTickets ? ("red" as const) : undefined },
+    stats.overdueInvoicesMinor !== null && { label: "Overdue receivables", value: <Money minor={stats.overdueInvoicesMinor} />, href: "/ops/invoices?show=overdue", tone: stats.overdueInvoicesMinor ? ("amber" as const) : undefined },
   ].filter(Boolean) as { label: string; value: React.ReactNode; href: string; tone?: "amber" | "red" }[];
 
   return (
     <>
-      <PageHeader title={`Welcome, ${actor.name.split(" ")[0]}`} description="Your work across departments. Figures reflect only what your role permits." actions={<LiveRefresh topics={["leads", "quotes", "orders", "approvals", "integrations"]} />} />
+      <PageHeader title={`Welcome, ${actor.name.split(" ")[0]}`} description="Your work across departments. Figures reflect only what your role permits." actions={<><LiveRefresh topics={["leads", "quotes", "orders", "approvals", "integrations", "tickets", "invoices"]} />{can(actor, "reports.read") && <Link href="/ops/reports" className="btn btn-ghost">Reports</Link>}</>} />
       {dpcMessage && can(actor, "settings.manage") && (
         <p className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900" role="status">
           {dpcMessage} <Link href="/ops/admin/settings" className="font-semibold underline">Update company settings</Link>
@@ -45,7 +48,7 @@ export default async function OpsDashboard() {
       ) : (
         <Card>
           <p className="text-sm text-slate-600">
-            Your role&apos;s modules (for example projects, support, network operations or HR) are planned for later milestones. See <Link className="text-teal-700 hover:underline" href="/ops/departments">Departments</Link> for what is available now.
+            Nothing needs your attention right now. See <Link className="text-teal-700 hover:underline" href="/ops/departments">Departments</Link> for the modules available to your role.
           </p>
         </Card>
       )}

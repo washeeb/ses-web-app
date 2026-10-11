@@ -4,6 +4,7 @@ import {
   categories,
   currencies,
   departments,
+  kbArticles,
   integrationConnections,
   leads,
   organizations,
@@ -111,6 +112,34 @@ export async function seedReference(db: DB) {
     await db.insert(departments).values({ organizationId: ses.id, key, name }).onConflictDoNothing();
   }
   const depts = await db.select().from(departments).where(eq(departments.organizationId, ses.id));
+
+  // Starter help articles about using the customer portal. Inserted once by slug; edits in the app are kept.
+  const STARTER_ARTICLES = [
+    {
+      slug: "how-to-report-a-problem",
+      title: "How to report a problem and what happens next",
+      summary: "Raise a support ticket in the portal and follow it to resolution.",
+      category: "how-to",
+      body: "Sign in to the customer portal and open Support, then choose Report a problem.\n\nGive a short subject, describe what is happening (when it started, who is affected and any error messages) and choose how serious it is. If the problem is with equipment we supplied, pick it from the list.\n\nThe ticket page shows when we aim to respond. Our replies appear on the ticket and you are notified. If we ask you a question, the clock pauses until you reply.\n\nWhen we mark a ticket resolved, reply if the problem is not fixed and the ticket reopens. Resolved tickets close automatically after a week.",
+    },
+    {
+      slug: "how-to-pay-an-invoice",
+      title: "How to view and pay an invoice",
+      summary: "Find your invoices, print them and pay online or by transfer.",
+      category: "billing",
+      body: "Open Invoices in the customer portal to see every invoice, what has been paid and what is outstanding.\n\nOpen an invoice to print it or save it as a PDF. Where online payment is available, choose Pay to pay the balance by card or mobile money; the invoice updates once the payment is confirmed.\n\nTo pay by bank transfer or mobile money transfer, use the payment details printed on the invoice and quote the invoice number as your reference. Our finance team records the payment when it arrives.",
+    },
+    {
+      slug: "subscription-renewals",
+      title: "How subscription renewals work",
+      summary: "Renewal invoices, automatic renewal and what happens if a renewal is not paid.",
+      category: "billing",
+      body: "Subscriptions are listed under Subscriptions in the customer portal with the dates of the current period.\n\nBefore a period ends we issue a renewal invoice. Paying it extends the subscription for another period. If the renewal is not paid within the grace period after the end date, the subscription lapses.\n\nYour organisation's administrator can stop automatic renewal at any time; the subscription then ends at the end of the current period.",
+    },
+  ];
+  for (const a of STARTER_ARTICLES) {
+    await db.insert(kbArticles).values({ ...a, audience: "customers", status: "published", publishedAt: new Date() }).onConflictDoNothing();
+  }
 
   // System permission sets stay in sync with code on every seed.
   for (const r of ROLE_TEMPLATES) {

@@ -10,6 +10,7 @@ import { cancelContract, cancelSubscription, createContract, createSubscription,
 import { addMilestone, addTask, createProject, decideSignoff, requestSignoff, setProjectStatus, setTaskStatus } from "@/server/modules/projects";
 import { createAsset, updateAsset } from "@/server/modules/assets";
 import { PRIORITIES } from "@/server/modules/service-time";
+import { suggestForTicket } from "@/server/modules/ai";
 
 type Prev = ActionState;
 const ops = () => requireActor("operator");
@@ -65,6 +66,16 @@ export async function ticketUpdateAction(_: Prev, fd: FormData) {
     revalidatePath(`/ops/support/${id}`);
     return "Ticket updated.";
   });
+}
+
+export async function aiSuggestAction(_: Prev, fd: FormData) {
+  const actor = await ops();
+  const id = str(fd, "id");
+  const r = await run(async () => {
+    await suggestForTicket(getDb(), actor, id);
+  });
+  if (!r.ok) return r;
+  redirect(`/ops/support/${id}?draft=ai#reply`);
 }
 
 // ── Subscriptions & contracts ──

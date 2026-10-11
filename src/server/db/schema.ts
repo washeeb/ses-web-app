@@ -1023,3 +1023,53 @@ export const projectTasks = pgTable(
   },
   (t) => [index().on(t.projectId)],
 );
+
+// ───────────────────────────── Knowledge base ─────────────────────────────
+
+export const kbArticles = pgTable(
+  "kb_articles",
+  {
+    id: id(),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    summary: text("summary"),
+    body: text("body").notNull(),
+    category: text("category").notNull().default("general"),
+    /** public (website) | customers (signed-in customers and staff) | internal (staff only) */
+    audience: text("audience").notNull().default("customers"),
+    /** draft | published */
+    status: text("status").notNull().default("draft"),
+    updatedBy: uuid("updated_by").references(() => users.id),
+    publishedAt: ts("published_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index().on(t.status, t.audience),
+    index("kb_articles_search").using("gin", sql`to_tsvector('english', ${t.title} || ' ' || coalesce(${t.summary}, '') || ' ' || ${t.body})`),
+  ],
+);
+
+// ───────────────────────────── AI assistance ─────────────────────────────
+
+/** One row per AI call: for daily limits, audit and showing the result. Prompts are not stored. */
+export const aiRequests = pgTable(
+  "ai_requests",
+  {
+    id: id(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    feature: text("feature").notNull(),
+    subjectType: text("subject_type"),
+    subjectId: text("subject_id"),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    /** ok | error */
+    status: text("status").notNull(),
+    output: jsonb("output"),
+    error: text("error"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.userId, t.createdAt), index().on(t.subjectType, t.subjectId)],
+);

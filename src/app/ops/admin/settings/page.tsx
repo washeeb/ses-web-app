@@ -2,6 +2,7 @@ import { getDb } from "@/server/db/client";
 import { requireActor } from "@/server/web/session";
 import { authorize } from "@/server/authz/policy";
 import { getSettings, listCurrencies, listTaxes } from "@/server/modules/settings";
+import { aiConfig } from "@/server/modules/ai";
 import { ActionForm } from "@/components/action-form";
 import { Badge, Card, Field, PageHeader } from "@/components/ui";
 import { updateSettingsAction, upsertTaxAction } from "../../actions";
@@ -11,6 +12,7 @@ export default async function SettingsPage() {
   authorize(actor, "settings.manage");
   const db = getDb();
   const [s, currencies, taxes] = await Promise.all([getSettings(db), listCurrencies(db), listTaxes(db)]);
+  const aiConfigured = !!aiConfig();
   return (
     <>
       <PageHeader title="Company settings" description="Changes are audited. Thresholds take effect for new quotations and price changes." />
@@ -49,6 +51,16 @@ export default async function SettingsPage() {
               </div>
               <div className="mt-4">
                 <Field label="Payment instructions" htmlFor="paymentInstructions" hint="Bank account or mobile money details shown on every invoice."><textarea id="paymentInstructions" name="paymentInstructions" rows={3} className="field" defaultValue={s.paymentInstructions} maxLength={1000} /></Field>
+              </div>
+            </fieldset>
+            <fieldset className="rounded-lg border border-slate-200 p-3">
+              <legend className="px-1 text-sm font-semibold">AI assistance</legend>
+              <p className="mb-3 text-xs text-slate-600">
+                Suggestions for support replies and report summaries, for staff only. Ticket text is sent to the AI provider (with e-mail addresses and phone numbers removed). It also needs a provider key on the server: {aiConfigured ? "configured." : "not configured yet — the switch has no effect until it is."}
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="aiEnabled" defaultChecked={s.aiEnabled} /> Turn on AI assistance</label>
+                <Field label="Requests per person per day" htmlFor="aiDailyLimitPerUser"><input id="aiDailyLimitPerUser" name="aiDailyLimitPerUser" type="number" min={0} max={500} className="field" defaultValue={s.aiDailyLimitPerUser} /></Field>
               </div>
             </fieldset>
             <fieldset className="rounded-lg border border-slate-200 p-3">

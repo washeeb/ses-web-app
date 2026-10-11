@@ -1,6 +1,7 @@
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import type { DB } from "../db/client";
 import {
+  assets,
   categories,
   invoices,
   leads,
@@ -9,11 +10,14 @@ import {
   payments,
   products,
   productVariants,
+  projects,
   purchaseOrders,
   returnRequests,
   stockLevels,
   stockLocations,
+  subscriptions,
   suppliers,
+  tickets,
 } from "../db/schema";
 import { authorize, type Actor } from "../authz/policy";
 import type { Permission } from "../authz/permissions";
@@ -84,6 +88,10 @@ export const EXPORTS: Record<string, { label: string; perm: Permission }> = {
   returns: { label: "Returns & warranty claims", perm: "returns.manage" },
   invoices: { label: "Invoices", perm: "finance.read" },
   payments: { label: "Payments received", perm: "finance.read" },
+  tickets: { label: "Support tickets (with SLA outcome)", perm: "support.read" },
+  subscriptions: { label: "Subscriptions", perm: "orders.read" },
+  projects: { label: "Projects", perm: "projects.read" },
+  assets: { label: "Customer assets", perm: "support.read" },
 };
 
 const money = (minor: number | null | undefined) => (minor === null || minor === undefined ? "" : (minor / 100).toFixed(2));
@@ -168,6 +176,46 @@ export async function exportCsv(db: DB, actor: Actor, kind: string) {
         .orderBy(desc(payments.paidAt));
       header = ["paid_at", "invoice", "customer", "status", "provider", "method", "amount", "currency", "reference", "external_reference", "mode"];
       rows = r.map(({ p, invoice, customer }) => [p.paidAt, invoice, customer, p.status, p.provider, p.method, money(p.amountMinor), p.currency, p.reference, p.externalReference, p.mode]);
+      break;
+    }
+    case "tickets": {
+      const r = await db
+        .select({ t: tickets, customer: organizations.name })
+        .from(tickets)
+        .innerJoin(organizations, eq(organizations.id, tickets.customerOrgId))
+        .orderBy(desc(tickets.createdAt));
+      header = ["number", "created_at", "customer", "subject", "category", "priority", "status", "level", "coverage", "response_due_at", "first_responded_at", "response_breached", "resolution_due_at", "resolved_at", "resolution_breached"];
+      rows = r.map(({ t, customer }) => [t.number, t.createdAt, customer, t.subject, t.category, t.priority, t.status, t.level, t.coverage, t.responseDueAt, t.firstRespondedAt, t.responseBreached ? "yes" : "no", t.resolutionDueAt, t.resolvedAt, t.resolutionBreached ? "yes" : "no"]);
+      break;
+    }
+    case "subscriptions": {
+      const r = await db
+        .select({ s: subscriptions, customer: organizations.name })
+        .from(subscriptions)
+        .innerJoin(organizations, eq(organizations.id, subscriptions.customerOrgId))
+        .orderBy(asc(subscriptions.currentPeriodEnd));
+      header = ["number", "customer", "description", "quantity", "unit_price", "currency", "billing_period", "status", "auto_renew", "current_period_start", "current_period_end", "ended_at", "end_reason"];
+      rows = r.map(({ s, customer }) => [s.number, customer, s.description, s.quantity, money(s.unitPriceMinor), s.currency, s.billingPeriod, s.status, s.autoRenew ? "yes" : "no", s.currentPeriodStart, s.currentPeriodEnd, s.endedAt, s.endReason]);
+      break;
+    }
+    case "projects": {
+      const r = await db
+        .select({ p: projects, customer: organizations.name })
+        .from(projects)
+        .leftJoin(organizations, eq(organizations.id, projects.customerOrgId))
+        .orderBy(desc(projects.createdAt));
+      header = ["number", "name", "customer", "status", "start_date", "due_date", "completed_at"];
+      rows = r.map(({ p, customer }) => [p.number, p.name, customer ?? "internal", p.status, p.startDate, p.dueDate, p.completedAt]);
+      break;
+    }
+    case "assets": {
+      const r = await db
+        .select({ a: assets, customer: organizations.name })
+        .from(assets)
+        .innerJoin(organizations, eq(organizations.id, assets.customerOrgId))
+        .orderBy(asc(assets.tag));
+      header = ["tag", "customer", "name", "serial_number", "location", "status", "installed_at"];
+      rows = r.map(({ a, customer }) => [a.tag, customer, a.name, a.serialNumber, a.location, a.status, a.installedAt]);
       break;
     }
     default: {

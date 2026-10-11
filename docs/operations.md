@@ -62,6 +62,14 @@ Keep secrets in the host's secret manager, never in the repository or images.
 - **SLA**: business hours are Mon–Fri 08:00–17:00 Accra. Public holidays are **not** excluded yet — on a holiday, expect breach alerts for tickets that were not actually late; agree targets with customers accordingly.
 - **Escalation**: L2 alerts everyone with `support.write`; L3 (engineering) alerts everyone with `projects.write`.
 
+## Insight & AI (M4)
+
+- **Reports**: Operations → Reports (needs `reports.read`). Print or download the CSV behind each section.
+- **Live updates across processes**: with PostgreSQL, each app process opens one extra database connection to LISTEN for events (keep `DB_POOL_MAX` + 1 per process within your plan's connection limit). Log lines `eventbus.listening` / `eventbus.connect_failed` show its state.
+- **AI assistance** (optional): set `AI_PROVIDER=anthropic`, `ANTHROPIC_API_KEY=sk-ant-…` (and optionally `AI_MODEL`) in `.env.production`, restart, then tick *Turn on AI assistance* in Company settings. Usage is billed by the provider per request; the per-person daily limit caps it. Each call is in the audit log as `ai.ticket_suggestion` / `ai.report_summary`.
+- **Knowledge base**: Operations → Knowledge base (`kb.write`). Public articles appear at `/help` and in the sitemap.
+- **Security contact**: `/.well-known/security.txt` publishes the support e-mail; see `docs/security-review.md`.
+
 ## Monitoring
 
 - `GET /api/health`: DB latency, queued, running and dead jobs. Alert if `status` ≠ ok, if `dead` > 0, or if `queued` keeps growing.

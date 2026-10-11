@@ -1,7 +1,7 @@
 # Synclytics Enterprise Systems (SES) — Project Master Plan
 
 > Living specification. Update the **Status**, **Decisions**, and **Progress log** sections as work lands.
-> Last updated: 2026-10-10 · Live: M1 + M2 · Built, not yet deployed: **M3a + M3b** (commerce, invoices, subscriptions, contracts/SLA, tickets, projects, assets) · Next: M4 (see §11)
+> Last updated: 2026-10-11 · Live: M1 + M2 · Built, not yet deployed: **M3 + M4** · All planned milestones built; remaining items are external (§12, §15)
 
 ---
 
@@ -346,8 +346,15 @@ Knowledge-base search, ticket classification and report summaries only. Permissi
 - New permissions: `subscriptions.manage`, `assets.manage` (operator); `customer.subscriptions.read/manage`, `customer.tickets.read/write`, `customer.projects.read/signoff`, `customer.assets.read`. Engineers gained `support.write` (third-line tickets).
 - Not done: Ghana public holidays in the SLA clock; e-mail-to-ticket; time tracking/billing on projects; proration when subscription quantities change mid-period.
 
-### M4 — Insight and advanced
-Department dashboards and reports, BI exports, AI assistance (§9), multi-instance event bus (Postgres NOTIFY), production hardening and pen-test.
+### M4 — Insight and advanced *(built 2026-10-11, not yet deployed)*
+- [x] Department reports (`/ops/reports`, `reports.read`): sales (win rate, order value by month, top items, quotation outcomes), finance (receivables ageing, invoiced vs collected by month, payments by method — test payments excluded), support (opened/resolved, first-response and resolution on-time %, open by priority, by area), recurring revenue (MRR, renewals due, lapsed), projects, operations (awaiting delivery, low stock, purchase spend by supplier, returns); 30/90/365-day periods; each section only with the underlying read permission; printable; accessible list-based charts (no chart library, no scripts)
+- [x] Dashboard tiles for open/breached tickets and overdue receivables
+- [x] BI exports: CSV for tickets (with SLA outcome), subscriptions, projects and assets, alongside the existing datasets (`data.export` + read permission, audited)
+- [x] Knowledge base: public / customers / internal articles, drafts, PostgreSQL full-text search (English stemming, safe query parsing), website help centre `/help`, staff editor, related articles on tickets; three starter portal how-to articles seeded once (editable)
+- [x] AI assistance (§9), off by default: needs `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` on the server **and** the Company settings switch. Staff with `ai.use` only. Ticket suggestions (category, priority, draft reply) from customer-visible messages + published non-internal articles, with e-mails/phones/long numbers redacted; report summaries from aggregates only. Output schema-validated, labelled, never applied automatically (draft goes into the reply box for a person to edit and send). Daily per-person limit (default 20). Every call recorded (`ai_requests`, no prompts stored) and audited. Model `AI_MODEL`, default `claude-opus-5-5`.
+- [x] Multi-process live updates: PostgreSQL LISTEN/NOTIFY relay (`event-bus-pg.ts`) started in every app process when DATABASE_URL is PostgreSQL — fixes live updates when Passenger runs several workers; reconnects with back-off; PGlite/dev stays in-process
+- [x] Hardening: COOP same-origin and X-Permitted-Cross-Domain-Policies headers; `robots.txt` (private areas disallowed), `sitemap.xml` (public pages, live products, public articles), `/.well-known/security.txt`; e2e security suite (every protected page redirects anonymous visitors, APIs refuse them, headers present, customer cannot reach staff or other customers' records); security self-review `docs/security-review.md`
+- Not done (external): independent penetration test (F1 in the review); AI provider decision and key; Ghana holiday calendar for SLAs
 
 ---
 
@@ -362,6 +369,8 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 | A5 | Paystack chosen; adapter, webhook and portal payment built (test mode). Needs test secret key, then live approval | Waiting for keys |
 | A6 | KingsView web app not built yet; to be built later in `E:\Businesses\1.KingsView\KVS-Web-App` against contract v1. Simulator only until then | Later phase |
 | A7 | E-mail via InMotion hosting mailbox (SMTP adapter built, queued with retries, bodies erased after send). Switch to a transactional provider if deliverability/volume requires. SMS not decided | Waiting for SMTP credentials |
+| A9 | AI provider: code supports Anthropic (Claude) only, switched off. Needs SES's decision, an API key (paid per use) and the settings switch. Privacy notice gains an AI paragraph automatically when switched on | Waiting for decision |
+| A10 | Independent penetration test before scaling payments / sensitive data | Recommended, not commissioned |
 | A8 | Case studies: realistic *example engagements* (labelled as examples, no named clients) until client-approved stories exist | Done (examples) |
 
 ---
@@ -380,6 +389,8 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 | 2026-10-10 | New partner products always arrive as **drafts**; partners never see SES sell prices; partner price rises ≥15% need approval (system-raised, so anyone with `catalogue.price.approve` may decide) |
 | 2026-10-10 | Customer Administrator holds a privileged permission (manage own users) → MFA mandatory for customer admins too |
 | 2026-10-10 | M3a: every order gets its invoice at creation (one open invoice per order); payments always apply to invoices; online payments never partial (full balance); manual-payment reversal is a two-person action |
+| 2026-10-11 | M4: AI is staff-only and suggestion-only; customers get plain knowledge-base search (no AI answers to customers until accuracy is proven); AI sees customer-visible text only, redacted |
+| 2026-10-11 | M4: live updates across processes via PostgreSQL LISTEN/NOTIFY instead of adding Redis (no new paid service on shared hosting) |
 | 2026-10-10 | M3b: SLA clock uses Accra business hours (UTC, no DST) unless the contract is 24×7; renewals bill in advance at the then-current catalogue price; a lapsed subscription is not revived by late payment (the renewal invoice is voided) |
 | 2026-10-10 | Store ordering is for signed-in business customers only (B2B); no public self-registration; cart kept server-side-validated in a cookie rather than browser storage |
 | 2026-10-10 | Demo data refused when `NODE_ENV=production`; production seeds reference data only and bootstraps the first admin via `npm run admin:create` |
@@ -389,6 +400,7 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 ## 14. Progress log
 
 - 2026-10-10 — Inspected the project folder (empty). Created this plan. Started M1.
+- 2026-10-11 — M4 built: department reports + dashboard tiles, BI exports, knowledge base + help centre, AI assistance (off by default), PostgreSQL LISTEN/NOTIFY relay, hardening (headers, robots/sitemap/security.txt, e2e security suite, security self-review). Migration 0005 (PG13-compatible). 110 unit/integration tests passing (11 new: relay echo/remote/malformed handling, KB audience isolation + stemming + hostile queries, AI off-by-default, redaction, internal notes excluded, schema validation, daily limit, staff-only, report permission sections, receivables ageing, BI exports). Browser-checked locally: help centre, security.txt/robots/sitemap, reports as auditor.
 - 2026-10-10 — M3b built: subscriptions & renewals, service contracts/SLA, support tickets with escalation and breach alerts, projects with customer sign-off, asset register. Migration 0004 (PG13-compatible). 99 unit/integration tests passing (16 new: business-hours clock, month-end periods, renewal/lapse/stop flows, customer isolation, SLA targets from contract vs standard, internal notes, pause/resume, escalation alerts, breach flagging, reopen/auto-close, asset isolation, sign-off rules). Browser-tested locally: customer raises ticket → staff reply (response met) → project with milestone and task. E2E: ticket flow + a11y on 10 new pages.
 - 2026-10-10 — M3a built: store cart/checkout, invoices, manual + Paystack invoice payments, reversals, overdue reminders, customer history, finance exports. Migration 0003 (PG13-compatible). 83 unit/integration tests passing (15 new); new e2e flows (cart → quotation request; customer admin MFA → order → invoice) and a11y checks for the new pages. Browser-tested locally: guest cart, customer checkout, invoice view, finance part-payment, customer history. CI e2e caught one bug (the quotation reference vanished when the emptied cart re-rendered) — fixed by redirecting to a confirmation; CI green, deploy bundle published.
 - 2026-10-10 — M2 deployed live; InMotion Backup Manager confirmed (home directory incl. ~/ses-data and PgSQL every 3 days, off-server).
@@ -408,7 +420,8 @@ Department dashboards and reports, BI exports, AI assistance (§9), multi-instan
 
 ### Current (2026-10-10)
 - **Live** at https://synclyticsenterprisesystems.com: M1 + M2 (procurement, documents, returns/warranty, notifications, CSV, nonce CSP). Verified externally after deploy: public pages 200, `/api/health` ok, per-request CSP nonce header present. Backups: InMotion Backup Manager (home dir incl. `~/ses-data`, PgSQL; every 3 days, off-server).
-- **Built, tested, not yet deployed:** M3a (store checkout, invoices, payments, customer history) and M3b (subscriptions, contracts/SLA, tickets, projects, assets) — see §11.
+- **Built, tested, not yet deployed:** M3a (store checkout, invoices, payments, customer history), M3b (subscriptions, contracts/SLA, tickets, projects, assets) and M4 (reports, BI exports, knowledge base, AI assistance off by default, multi-process live updates, hardening) — see §11.
+- **Not verified against real external services:** PostgreSQL LISTEN/NOTIFY relay (logic unit-tested; needs the live PostgreSQL to confirm), Anthropic API (tested with a fake; needs a key), Paystack (needs keys), SMTP (needs credentials).
 - **Tested for M3a:** 83 unit/integration tests (cart tampering, pricing with Ghana taxes, checkout permissions/limits/stock, atomic order+invoice, invoice visibility across customers, manual payments with MFA/overpayment/duplicates, two-person reversal, void rules, auto-void on cancel/expiry, Paystack invoice payment incl. duplicate-after-settlement refund flag, reminders cadence, stock hold after payment). Browser (local): guest cart → totals; customer admin MFA enrolment → order → invoice; finance part-payment; customer history; no console/CSP errors. E2E + axe for the new pages run in CI.
 - **Still depends on external parties:** Paystack test/live keys (online payment of invoices untested against the real API), SMTP credentials (reminder e-mails queue but are not delivered until set), GRA e-VAT requirements (A4), DPC registration number (later).
 
