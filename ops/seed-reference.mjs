@@ -12518,6 +12518,7 @@ import path from "node:path";
 // src/server/db/schema.ts
 var schema_exports = {};
 __export(schema_exports, {
+  aiRequests: () => aiRequests,
   apiCredentials: () => apiCredentials,
   approvalRequests: () => approvalRequests,
   assets: () => assets,
@@ -12533,6 +12534,7 @@ __export(schema_exports, {
   invoiceLines: () => invoiceLines,
   invoices: () => invoices,
   jobs: () => jobs,
+  kbArticles: () => kbArticles,
   leads: () => leads,
   mailOutbox: () => mailOutbox,
   notifications: () => notifications,
@@ -13470,6 +13472,49 @@ var projectTasks = pgTable(
   },
   (t) => [index().on(t.projectId)]
 );
+var kbArticles = pgTable(
+  "kb_articles",
+  {
+    id: id(),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    summary: text("summary"),
+    body: text("body").notNull(),
+    category: text("category").notNull().default("general"),
+    /** public (website) | customers (signed-in customers and staff) | internal (staff only) */
+    audience: text("audience").notNull().default("customers"),
+    /** draft | published */
+    status: text("status").notNull().default("draft"),
+    updatedBy: uuid("updated_by").references(() => users.id),
+    publishedAt: ts("published_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [
+    index().on(t.status, t.audience),
+    index("kb_articles_search").using("gin", sql`to_tsvector('english', ${t.title} || ' ' || coalesce(${t.summary}, '') || ' ' || ${t.body})`)
+  ]
+);
+var aiRequests = pgTable(
+  "ai_requests",
+  {
+    id: id(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    feature: text("feature").notNull(),
+    subjectType: text("subject_type"),
+    subjectId: text("subject_id"),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    /** ok | error */
+    status: text("status").notNull(),
+    output: jsonb("output"),
+    error: text("error"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.userId, t.createdAt), index().on(t.subjectType, t.subjectId)]
+);
 
 // src/server/db/client.ts
 function createDb(url2) {
@@ -13539,6 +13584,8 @@ var PERMISSIONS = {
   "hr.write": op("Manage HR records", true),
   "marketing.write": op("Manage marketing content"),
   "reports.read": op("View reports and dashboards"),
+  "kb.write": op("Write and publish knowledge-base articles"),
+  "ai.use": op("Use AI assistance (suggestions only; never acts on its own)"),
   // Integrations
   "integrations.read": op("View integration health"),
   "integrations.manage": op("Manage partner connections and credentials", true),
@@ -13591,28 +13638,28 @@ var ROLE_TEMPLATES = [
     name: "Executive",
     domain: "operator",
     description: "Read access across the business and approval of high-value quotations.",
-    permissions: [...READ_CORE, "approvals.read", "quotes.approve", "finance.read", "reports.read", "integrations.read", "projects.read", "support.read", "procurement.read", "procurement.approve", "documents.read", "refunds.approve", "data.export"]
+    permissions: [...READ_CORE, "approvals.read", "quotes.approve", "finance.read", "reports.read", "integrations.read", "projects.read", "support.read", "procurement.read", "procurement.approve", "documents.read", "refunds.approve", "data.export", "ai.use"]
   },
   {
     key: "department_manager",
     name: "Department Manager",
     domain: "operator",
     description: "Manages a department's records; usually assigned with a department scope.",
-    permissions: [...READ_CORE, "leads.write", "quotes.write", "approvals.read", "reports.read", "users.read", "documents.read", "documents.write", "returns.manage", "data.export", "subscriptions.manage", "projects.read", "support.read"]
+    permissions: [...READ_CORE, "leads.write", "quotes.write", "approvals.read", "reports.read", "users.read", "documents.read", "documents.write", "returns.manage", "data.export", "subscriptions.manage", "projects.read", "support.read", "kb.write", "ai.use"]
   },
   {
     key: "finance_officer",
     name: "Finance Officer",
     domain: "operator",
     description: "Finance records, quotation approval and price approvals.",
-    permissions: [...READ_CORE, "finance.read", "finance.write", "approvals.read", "quotes.approve", "catalogue.price.approve", "reports.read", "procurement.read", "procurement.approve", "documents.read", "refunds.approve", "data.export", "subscriptions.manage"]
+    permissions: [...READ_CORE, "finance.read", "finance.write", "approvals.read", "quotes.approve", "catalogue.price.approve", "reports.read", "procurement.read", "procurement.approve", "documents.read", "refunds.approve", "data.export", "subscriptions.manage", "ai.use"]
   },
   {
     key: "sales_officer",
     name: "Sales Officer",
     domain: "operator",
     description: "Leads, quotations and orders.",
-    permissions: [...READ_CORE, "leads.write", "quotes.write", "orders.write", "documents.read", "documents.write", "returns.manage", "data.export", "subscriptions.manage", "support.read", "projects.read"]
+    permissions: [...READ_CORE, "leads.write", "quotes.write", "orders.write", "documents.read", "documents.write", "returns.manage", "data.export", "subscriptions.manage", "support.read", "projects.read", "ai.use"]
   },
   {
     key: "procurement_officer",
@@ -13633,7 +13680,7 @@ var ROLE_TEMPLATES = [
     name: "Engineer",
     domain: "operator",
     description: "Delivery and engineering work, including escalated (third-line) support tickets.",
-    permissions: ["catalogue.read", "projects.read", "projects.write", "support.read", "support.write", "assets.manage", "integrations.read"]
+    permissions: ["catalogue.read", "projects.read", "projects.write", "support.read", "support.write", "assets.manage", "integrations.read", "kb.write", "ai.use"]
   },
   {
     key: "network_operator",
@@ -13647,7 +13694,7 @@ var ROLE_TEMPLATES = [
     name: "Support Agent",
     domain: "operator",
     description: "Customer support and managed services.",
-    permissions: ["support.read", "support.write", "orders.read", "catalogue.read", "documents.read", "returns.manage", "assets.manage"]
+    permissions: ["support.read", "support.write", "orders.read", "catalogue.read", "documents.read", "returns.manage", "assets.manage", "kb.write", "ai.use"]
   },
   {
     key: "hr_officer",
@@ -33477,10 +33524,17 @@ async function audit(db2, e) {
 
 // src/server/modules/events.ts
 import { EventEmitter } from "node:events";
+import { randomUUID as randomUUID2 } from "node:crypto";
 var g = globalThis;
 var bus = g.__sesBus ??= new EventEmitter().setMaxListeners(1e3);
+var INSTANCE_ID = g.__sesInstance ??= randomUUID2();
+function emitLocal(event) {
+  bus.emit("event", event);
+}
 function publish(event) {
-  bus.emit("event", { ...event, at: event.at ?? (/* @__PURE__ */ new Date()).toISOString() });
+  const e = { ...event, at: event.at ?? (/* @__PURE__ */ new Date()).toISOString() };
+  emitLocal(e);
+  g.__sesTransport?.({ origin: INSTANCE_ID, event: e });
 }
 
 // src/server/modules/jobs.ts
@@ -35254,6 +35308,9 @@ var settingsSchema = external_exports.object({
   renewalGraceDays: external_exports.number().int().min(0).max(60),
   /** Resolved tickets close automatically after this many days without a customer reply. */
   ticketAutoCloseDays: external_exports.number().int().min(1).max(60),
+  /** AI assistance is off until switched on here AND a provider key is configured on the server. */
+  aiEnabled: external_exports.boolean(),
+  aiDailyLimitPerUser: external_exports.number().int().min(0).max(500),
   supportEmail: external_exports.string().email(),
   supportPhone: external_exports.string().max(40),
   /** Data Protection Commission (Ghana) registration — shown publicly once set. */
@@ -35286,6 +35343,8 @@ var DEFAULT_SETTINGS = {
   renewalNoticeDays: 30,
   renewalGraceDays: 14,
   ticketAutoCloseDays: 7,
+  aiEnabled: false,
+  aiDailyLimitPerUser: 20,
   supportEmail: "support@synclyticsenterprisesystems.com",
   supportPhone: "+233 00 000 0000",
   dpcRegistrationNumber: "",
@@ -35665,6 +35724,32 @@ async function seedReference(db2) {
     await db2.insert(departments).values({ organizationId: ses.id, key, name: name2 }).onConflictDoNothing();
   }
   const depts = await db2.select().from(departments).where(eq(departments.organizationId, ses.id));
+  const STARTER_ARTICLES = [
+    {
+      slug: "how-to-report-a-problem",
+      title: "How to report a problem and what happens next",
+      summary: "Raise a support ticket in the portal and follow it to resolution.",
+      category: "how-to",
+      body: "Sign in to the customer portal and open Support, then choose Report a problem.\n\nGive a short subject, describe what is happening (when it started, who is affected and any error messages) and choose how serious it is. If the problem is with equipment we supplied, pick it from the list.\n\nThe ticket page shows when we aim to respond. Our replies appear on the ticket and you are notified. If we ask you a question, the clock pauses until you reply.\n\nWhen we mark a ticket resolved, reply if the problem is not fixed and the ticket reopens. Resolved tickets close automatically after a week."
+    },
+    {
+      slug: "how-to-pay-an-invoice",
+      title: "How to view and pay an invoice",
+      summary: "Find your invoices, print them and pay online or by transfer.",
+      category: "billing",
+      body: "Open Invoices in the customer portal to see every invoice, what has been paid and what is outstanding.\n\nOpen an invoice to print it or save it as a PDF. Where online payment is available, choose Pay to pay the balance by card or mobile money; the invoice updates once the payment is confirmed.\n\nTo pay by bank transfer or mobile money transfer, use the payment details printed on the invoice and quote the invoice number as your reference. Our finance team records the payment when it arrives."
+    },
+    {
+      slug: "subscription-renewals",
+      title: "How subscription renewals work",
+      summary: "Renewal invoices, automatic renewal and what happens if a renewal is not paid.",
+      category: "billing",
+      body: "Subscriptions are listed under Subscriptions in the customer portal with the dates of the current period.\n\nBefore a period ends we issue a renewal invoice. Paying it extends the subscription for another period. If the renewal is not paid within the grace period after the end date, the subscription lapses.\n\nYour organisation's administrator can stop automatic renewal at any time; the subscription then ends at the end of the current period."
+    }
+  ];
+  for (const a of STARTER_ARTICLES) {
+    await db2.insert(kbArticles).values({ ...a, audience: "customers", status: "published", publishedAt: /* @__PURE__ */ new Date() }).onConflictDoNothing();
+  }
   for (const r of ROLE_TEMPLATES) {
     const [existing] = await db2.select().from(permissionSets).where(and(eq(permissionSets.key, r.key), isNull(permissionSets.organizationId)));
     if (existing) {

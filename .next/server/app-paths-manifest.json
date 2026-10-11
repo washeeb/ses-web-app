@@ -6,6 +6,8 @@
   "/(auth)/reset-password/page": "app/(auth)/reset-password/page.js",
   "/(site)/case-studies/page": "app/(site)/case-studies/page.js",
   "/(site)/contact/page": "app/(site)/contact/page.js",
+  "/(site)/help/[slug]/page": "app/(site)/help/[slug]/page.js",
+  "/(site)/help/page": "app/(site)/help/page.js",
   "/(site)/page": "app/(site)/page.js",
   "/(site)/partners/page": "app/(site)/partners/page.js",
   "/(site)/privacy/page": "app/(site)/privacy/page.js",
@@ -20,6 +22,7 @@
   "/api/events/route": "app/api/events/route.js",
   "/api/exports/[kind]/route": "app/api/exports/[kind]/route.js",
   "/api/health/route": "app/api/health/route.js",
+  "/api/security-txt/route": "app/api/security-txt/route.js",
   "/api/simulators/kingsview/inbox/route": "app/api/simulators/kingsview/inbox/route.js",
   "/api/v1/health/route": "app/api/v1/health/route.js",
   "/api/v1/integrations/[connectionId]/events/route": "app/api/v1/integrations/[connectionId]/events/route.js",
@@ -49,6 +52,8 @@
   "/ops/integrations/page": "app/ops/integrations/page.js",
   "/ops/invoices/[id]/page": "app/ops/invoices/[id]/page.js",
   "/ops/invoices/page": "app/ops/invoices/page.js",
+  "/ops/knowledge/[id]/page": "app/ops/knowledge/[id]/page.js",
+  "/ops/knowledge/page": "app/ops/knowledge/page.js",
   "/ops/leads/page": "app/ops/leads/page.js",
   "/ops/notifications/page": "app/ops/notifications/page.js",
   "/ops/orders/[id]/page": "app/ops/orders/[id]/page.js",
@@ -63,6 +68,7 @@
   "/ops/quotes/[id]/page": "app/ops/quotes/[id]/page.js",
   "/ops/quotes/new/page": "app/ops/quotes/new/page.js",
   "/ops/quotes/page": "app/ops/quotes/page.js",
+  "/ops/reports/page": "app/ops/reports/page.js",
   "/ops/returns/[id]/page": "app/ops/returns/[id]/page.js",
   "/ops/returns/page": "app/ops/returns/page.js",
   "/ops/subscriptions/[id]/page": "app/ops/subscriptions/[id]/page.js",
@@ -87,5 +93,7 @@
   "/portal/subscriptions/page": "app/portal/subscriptions/page.js",
   "/portal/support/[id]/page": "app/portal/support/[id]/page.js",
   "/portal/support/new/page": "app/portal/support/new/page.js",
-  "/portal/support/page": "app/portal/support/page.js"
+  "/portal/support/page": "app/portal/support/page.js",
+  "/robots.txt/route": "app/robots.txt/route.js",
+  "/sitemap.xml/route": "app/sitemap.xml/route.js"
 }

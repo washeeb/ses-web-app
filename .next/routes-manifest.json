@@ -35,6 +35,14 @@
           "value": "camera=(), microphone=(), geolocation=(), payment=()"
         },
         {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "X-Permitted-Cross-Domain-Policies",
+          "value": "none"
+        },
+        {
           "key": "Strict-Transport-Security",
           "value": "max-age=63072000; includeSubDomains"
         }
@@ -65,7 +73,13 @@
   "onMatchHeaders": [],
   "rewrites": {
     "beforeFiles": [],
-    "afterFiles": [],
+    "afterFiles": [
+      {
+        "source": "/.well-known/security.txt",
+        "destination": "/api/security-txt",
+        "regex": "^/\\.well-known/security\\.txt(?:/)?$"
+      }
+    ],
     "fallback": []
   },
   "dynamicRoutes": [
@@ -92,6 +106,14 @@
         "nxtPconnectionId": "nxtPconnectionId"
       },
       "namedRegex": "^/api/v1/integrations/(?<nxtPconnectionId>[^/]+?)/events(?:/)?$"
+    },
+    {
+      "page": "/help/[slug]",
+      "regex": "^/help/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPslug": "nxtPslug"
+      },
+      "namedRegex": "^/help/(?<nxtPslug>[^/]+?)(?:/)?$"
     },
     {
       "page": "/ops/assets/[id]",
@@ -132,6 +154,14 @@
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/ops/invoices/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/ops/knowledge/[id]",
+      "regex": "^/ops/knowledge/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/knowledge/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
       "page": "/ops/orders/[id]",
@@ -298,6 +328,12 @@
       "namedRegex": "^/api/health(?:/)?$"
     },
     {
+      "page": "/api/security-txt",
+      "regex": "^/api/security\\-txt(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/security\\-txt(?:/)?$"
+    },
+    {
       "page": "/api/simulators/kingsview/inbox",
       "regex": "^/api/simulators/kingsview/inbox(?:/)?$",
       "routeKeys": {},
@@ -356,6 +392,12 @@
       "regex": "^/forgot\\-password(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/forgot\\-password(?:/)?$"
+    },
+    {
+      "page": "/help",
+      "regex": "^/help(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/help(?:/)?$"
     },
     {
       "page": "/icon.png",
@@ -472,6 +514,12 @@
       "namedRegex": "^/ops/invoices(?:/)?$"
     },
     {
+      "page": "/ops/knowledge",
+      "regex": "^/ops/knowledge(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/knowledge(?:/)?$"
+    },
+    {
       "page": "/ops/leads",
       "regex": "^/ops/leads(?:/)?$",
       "routeKeys": {},
@@ -524,6 +572,12 @@
       "regex": "^/ops/quotes/new(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/ops/quotes/new(?:/)?$"
+    },
+    {
+      "page": "/ops/reports",
+      "regex": "^/ops/reports(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/reports(?:/)?$"
     },
     {
       "page": "/ops/returns",
@@ -634,10 +688,22 @@
       "namedRegex": "^/reset\\-password(?:/)?$"
     },
     {
+      "page": "/robots.txt",
+      "regex": "^/robots\\.txt(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/robots\\.txt(?:/)?$"
+    },
+    {
       "page": "/services",
       "regex": "^/services(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/services(?:/)?$"
+    },
+    {
+      "page": "/sitemap.xml",
+      "regex": "^/sitemap\\.xml(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/sitemap\\.xml(?:/)?$"
     },
     {
       "page": "/store",

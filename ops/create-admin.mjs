@@ -12508,6 +12508,7 @@ import path from "node:path";
 // src/server/db/schema.ts
 var schema_exports = {};
 __export(schema_exports, {
+  aiRequests: () => aiRequests,
   apiCredentials: () => apiCredentials,
   approvalRequests: () => approvalRequests,
   assets: () => assets,
@@ -12523,6 +12524,7 @@ __export(schema_exports, {
   invoiceLines: () => invoiceLines,
   invoices: () => invoices,
   jobs: () => jobs,
+  kbArticles: () => kbArticles,
   leads: () => leads,
   mailOutbox: () => mailOutbox,
   notifications: () => notifications,
@@ -13460,6 +13462,49 @@ var projectTasks = pgTable(
   },
   (t) => [index().on(t.projectId)]
 );
+var kbArticles = pgTable(
+  "kb_articles",
+  {
+    id: id(),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    summary: text("summary"),
+    body: text("body").notNull(),
+    category: text("category").notNull().default("general"),
+    /** public (website) | customers (signed-in customers and staff) | internal (staff only) */
+    audience: text("audience").notNull().default("customers"),
+    /** draft | published */
+    status: text("status").notNull().default("draft"),
+    updatedBy: uuid("updated_by").references(() => users.id),
+    publishedAt: ts("published_at"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [
+    index().on(t.status, t.audience),
+    index("kb_articles_search").using("gin", sql`to_tsvector('english', ${t.title} || ' ' || coalesce(${t.summary}, '') || ' ' || ${t.body})`)
+  ]
+);
+var aiRequests = pgTable(
+  "ai_requests",
+  {
+    id: id(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    feature: text("feature").notNull(),
+    subjectType: text("subject_type"),
+    subjectId: text("subject_id"),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    /** ok | error */
+    status: text("status").notNull(),
+    output: jsonb("output"),
+    error: text("error"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.userId, t.createdAt), index().on(t.subjectType, t.subjectId)]
+);
 
 // src/server/db/client.ts
 function createDb(url) {
@@ -13550,6 +13595,8 @@ var PERMISSIONS = {
   "hr.write": op("Manage HR records", true),
   "marketing.write": op("Manage marketing content"),
   "reports.read": op("View reports and dashboards"),
+  "kb.write": op("Write and publish knowledge-base articles"),
+  "ai.use": op("Use AI assistance (suggestions only; never acts on its own)"),
   // Integrations
   "integrations.read": op("View integration health"),
   "integrations.manage": op("Manage partner connections and credentials", true),

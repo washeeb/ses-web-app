@@ -346,7 +346,17 @@
     "turbopack": {
       "root": "/home/runner/work/ses-web-app/ses-web-app"
     },
-    "distDirRoot": ".next"
+    "distDirRoot": ".next",
+    "_originalRewrites": {
+      "beforeFiles": [],
+      "afterFiles": [
+        {
+          "source": "/.well-known/security.txt",
+          "destination": "/api/security-txt"
+        }
+      ],
+      "fallback": []
+    }
   },
   "appDir": "/home/runner/work/ses-web-app/ses-web-app",
   "relativeAppDir": "",

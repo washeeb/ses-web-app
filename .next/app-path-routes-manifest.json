@@ -6,6 +6,8 @@
   "/(auth)/reset-password/page": "/reset-password",
   "/(site)/case-studies/page": "/case-studies",
   "/(site)/contact/page": "/contact",
+  "/(site)/help/[slug]/page": "/help/[slug]",
+  "/(site)/help/page": "/help",
   "/(site)/page": "/",
   "/(site)/partners/page": "/partners",
   "/(site)/privacy/page": "/privacy",
@@ -20,6 +22,7 @@
   "/api/events/route": "/api/events",
   "/api/exports/[kind]/route": "/api/exports/[kind]",
   "/api/health/route": "/api/health",
+  "/api/security-txt/route": "/api/security-txt",
   "/api/simulators/kingsview/inbox/route": "/api/simulators/kingsview/inbox",
   "/api/v1/health/route": "/api/v1/health",
   "/api/v1/integrations/[connectionId]/events/route": "/api/v1/integrations/[connectionId]/events",
@@ -49,6 +52,8 @@
   "/ops/integrations/page": "/ops/integrations",
   "/ops/invoices/[id]/page": "/ops/invoices/[id]",
   "/ops/invoices/page": "/ops/invoices",
+  "/ops/knowledge/[id]/page": "/ops/knowledge/[id]",
+  "/ops/knowledge/page": "/ops/knowledge",
   "/ops/leads/page": "/ops/leads",
   "/ops/notifications/page": "/ops/notifications",
   "/ops/orders/[id]/page": "/ops/orders/[id]",
@@ -63,6 +68,7 @@
   "/ops/quotes/[id]/page": "/ops/quotes/[id]",
   "/ops/quotes/new/page": "/ops/quotes/new",
   "/ops/quotes/page": "/ops/quotes",
+  "/ops/reports/page": "/ops/reports",
   "/ops/returns/[id]/page": "/ops/returns/[id]",
   "/ops/returns/page": "/ops/returns",
   "/ops/subscriptions/[id]/page": "/ops/subscriptions/[id]",
@@ -87,5 +93,7 @@
   "/portal/subscriptions/page": "/portal/subscriptions",
   "/portal/support/[id]/page": "/portal/support/[id]",
   "/portal/support/new/page": "/portal/support/new",
-  "/portal/support/page": "/portal/support"
+  "/portal/support/page": "/portal/support",
+  "/robots.txt/route": "/robots.txt",
+  "/sitemap.xml/route": "/sitemap.xml"
 }
