@@ -3,6 +3,9 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/server/db/client";
 import { kbArticles, products } from "@/server/db/schema";
 
+// Built per request from the database (never at build time, when there is no database).
+export const dynamic = "force-dynamic";
+
 /** Public pages only: published products and public help articles. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.APP_URL ?? "https://synclyticsenterprisesystems.com";
