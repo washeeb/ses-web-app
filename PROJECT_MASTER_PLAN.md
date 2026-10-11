@@ -1,7 +1,7 @@
 # Synclytics Enterprise Systems (SES) — Project Master Plan
 
 > Living specification. Update the **Status**, **Decisions**, and **Progress log** sections as work lands.
-> Last updated: 2026-10-11 · Live: M1 + M2 · Built, not yet deployed: **M3 + M4** · All planned milestones built; remaining items are external (§12, §15)
+> Last updated: 2026-10-11 · **Live: M1–M4** at https://synclyticsenterprisesystems.com · Remaining items are external (§12, §15)
 
 ---
 
@@ -346,7 +346,7 @@ Knowledge-base search, ticket classification and report summaries only. Permissi
 - New permissions: `subscriptions.manage`, `assets.manage` (operator); `customer.subscriptions.read/manage`, `customer.tickets.read/write`, `customer.projects.read/signoff`, `customer.assets.read`. Engineers gained `support.write` (third-line tickets).
 - Not done: Ghana public holidays in the SLA clock; e-mail-to-ticket; time tracking/billing on projects; proration when subscription quantities change mid-period.
 
-### M4 — Insight and advanced *(built 2026-10-11, not yet deployed)*
+### M4 — Insight and advanced *(live 2026-10-11)*
 - [x] Department reports (`/ops/reports`, `reports.read`): sales (win rate, order value by month, top items, quotation outcomes), finance (receivables ageing, invoiced vs collected by month, payments by method — test payments excluded), support (opened/resolved, first-response and resolution on-time %, open by priority, by area), recurring revenue (MRR, renewals due, lapsed), projects, operations (awaiting delivery, low stock, purchase spend by supplier, returns); 30/90/365-day periods; each section only with the underlying read permission; printable; accessible list-based charts (no chart library, no scripts)
 - [x] Dashboard tiles for open/breached tickets and overdue receivables
 - [x] BI exports: CSV for tickets (with SLA outcome), subscriptions, projects and assets, alongside the existing datasets (`data.export` + read permission, audited)
@@ -400,6 +400,7 @@ Knowledge-base search, ticket classification and report summaries only. Permissi
 ## 14. Progress log
 
 - 2026-10-10 — Inspected the project folder (empty). Created this plan. Started M1.
+- 2026-10-11 — **M3 + M4 deployed live.** Verified externally: all public pages 200 (incl. /store/cart, /help), /api/health ok (no queued or dead jobs), private areas redirect to sign-in, security.txt/robots.txt/sitemap.xml served with the https site address, CSP nonce + COOP + X-Frame-Options headers present. Not verifiable from outside: the LISTEN/NOTIFY relay (check the app log for eventbus.listening).
 - 2026-10-11 — M4 built: department reports + dashboard tiles, BI exports, knowledge base + help centre, AI assistance (off by default), PostgreSQL LISTEN/NOTIFY relay, hardening (headers, robots/sitemap/security.txt, e2e security suite, security self-review). Migration 0005 (PG13-compatible). 110 unit/integration tests passing (11 new: relay echo/remote/malformed handling, KB audience isolation + stemming + hostile queries, AI off-by-default, redaction, internal notes excluded, schema validation, daily limit, staff-only, report permission sections, receivables ageing, BI exports). Browser-checked locally: help centre, security.txt/robots/sitemap, reports as auditor. CI caught the sitemap being pre-rendered at build time (no database there) — now rendered per request.
 - 2026-10-10 — M3b built: subscriptions & renewals, service contracts/SLA, support tickets with escalation and breach alerts, projects with customer sign-off, asset register. Migration 0004 (PG13-compatible). 99 unit/integration tests passing (16 new: business-hours clock, month-end periods, renewal/lapse/stop flows, customer isolation, SLA targets from contract vs standard, internal notes, pause/resume, escalation alerts, breach flagging, reopen/auto-close, asset isolation, sign-off rules). Browser-tested locally: customer raises ticket → staff reply (response met) → project with milestone and task. E2E: ticket flow + a11y on 10 new pages.
 - 2026-10-10 — M3a built: store cart/checkout, invoices, manual + Paystack invoice payments, reversals, overdue reminders, customer history, finance exports. Migration 0003 (PG13-compatible). 83 unit/integration tests passing (15 new); new e2e flows (cart → quotation request; customer admin MFA → order → invoice) and a11y checks for the new pages. Browser-tested locally: guest cart, customer checkout, invoice view, finance part-payment, customer history. CI e2e caught one bug (the quotation reference vanished when the emptied cart re-rendered) — fixed by redirecting to a confirmation; CI green, deploy bundle published.
@@ -419,7 +420,7 @@ Knowledge-base search, ticket classification and report summaries only. Permissi
 ## 15. Status report
 
 ### Current (2026-10-10)
-- **Live** at https://synclyticsenterprisesystems.com: M1 + M2 (procurement, documents, returns/warranty, notifications, CSV, nonce CSP). Verified externally after deploy: public pages 200, `/api/health` ok, per-request CSP nonce header present. Backups: InMotion Backup Manager (home dir incl. `~/ses-data`, PgSQL; every 3 days, off-server).
+- **Live** at https://synclyticsenterprisesystems.com: M1–M4 (M3 + M4 deployed 2026-10-11); before that M1 + M2 (procurement, documents, returns/warranty, notifications, CSV, nonce CSP). Verified externally after deploy: public pages 200, `/api/health` ok, per-request CSP nonce header present. Backups: InMotion Backup Manager (home dir incl. `~/ses-data`, PgSQL; every 3 days, off-server).
 - **Built, tested, not yet deployed:** M3a (store checkout, invoices, payments, customer history), M3b (subscriptions, contracts/SLA, tickets, projects, assets) and M4 (reports, BI exports, knowledge base, AI assistance off by default, multi-process live updates, hardening) — see §11.
 - **Not verified against real external services:** PostgreSQL LISTEN/NOTIFY relay (logic unit-tested; needs the live PostgreSQL to confirm), Anthropic API (tested with a fake; needs a key), Paystack (needs keys), SMTP (needs credentials).
 - **Tested for M3a:** 83 unit/integration tests (cart tampering, pricing with Ghana taxes, checkout permissions/limits/stock, atomic order+invoice, invoice visibility across customers, manual payments with MFA/overpayment/duplicates, two-person reversal, void rules, auto-void on cancel/expiry, Paystack invoice payment incl. duplicate-after-settlement refund flag, reminders cadence, stock hold after payment). Browser (local): guest cart → totals; customer admin MFA enrolment → order → invoice; finance part-payment; customer history; no console/CSP errors. E2E + axe for the new pages run in CI.
