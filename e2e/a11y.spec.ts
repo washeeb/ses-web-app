@@ -51,6 +51,17 @@ test.describe("inventory pages (warehouse officer)", () => {
   }
 });
 
+test.describe("reports (auditor)", () => {
+  test.use({ storageState: STATE.auditor });
+  for (const path of ["/ops/reports", "/ops/reports/sales", "/ops/reports/sales?range=12m", "/ops/reports/products", "/ops/reports/inventory", "/ops/reports/forecast", "/ops/reports/finance", "/ops/reports/purchasing", "/ops/reports/pipeline"]) {
+    test(`${path} is accessible`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.locator("main h1")).toBeVisible();
+      await expectAccessible(page, path);
+    });
+  }
+});
+
 test.describe("customer pages", () => {
   test.use({ storageState: STATE.customer });
   for (const path of ["/portal", "/portal/invoices", "/portal/support", "/portal/support/new", "/portal/subscriptions", "/portal/projects", "/portal/assets", "/portal/returns", "/portal/notifications"]) {

@@ -12,7 +12,8 @@ export async function signIn(page: Page, email: string) {
   await page.getByLabel("E-mail").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
+  // Leaves the sign-in form: onwards, or to the two-step step (/login/mfa) for accounts that use it.
+  await page.waitForURL((u) => u.pathname !== "/login");
 }
 
 /** Fails on any WCAG 2.1 A/AA violation, listing each rule and the affected elements. */

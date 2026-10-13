@@ -132,6 +132,14 @@ export function Field({ label, htmlFor, hint, children }: { label: string; htmlF
   );
 }
 
-export function TableWrap({ children }: { children: ReactNode }) {
-  return <div className="-mx-5 overflow-x-auto">{children}</div>;
+/**
+ * Wide tables scroll sideways on small screens. The scroll area is focusable so keyboard users can scroll it too
+ * (WCAG 2.1.1), and it is named for screen readers.
+ */
+export function TableWrap({ children, label = "Table" }: { children: ReactNode; label?: string }) {
+  return (
+    <div className="-mx-5 overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2" tabIndex={0} role="region" aria-label={label}>
+      {children}
+    </div>
+  );
 }

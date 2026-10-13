@@ -64,6 +64,10 @@ export default async function SettingsPage() {
               </div>
             </fieldset>
             <fieldset className="rounded-lg border border-slate-200 p-3">
+              <legend className="px-1 text-sm font-semibold">Reports</legend>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="weeklyReport" defaultChecked={s.weeklyReport} /> E-mail a weekly summary every Monday to staff who can view reports (each sees only what their role allows)</label>
+            </fieldset>
+            <fieldset className="rounded-lg border border-slate-200 p-3">
               <legend className="px-1 text-sm font-semibold">Data Protection Commission (Ghana)</legend>
               <p className="mb-3 text-xs text-slate-600">Once registered, enter the certificate details. The number appears on the privacy notice and site footer, and administrators are reminded 60 days before expiry.</p>
               <div className="grid gap-4 sm:grid-cols-2">

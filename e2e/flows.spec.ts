@@ -157,3 +157,17 @@ test.describe("warehouse officer", () => {
     await expect(page.getByRole("img", { name: "Barcode SES-LAP14-I5-16" })).toHaveCount(3);
   });
 });
+
+test.describe("auditor reports", () => {
+  test.use({ storageState: STATE.auditor });
+  test("switches period, highlights the tab and downloads CSV", async ({ page }) => {
+    await page.goto("/ops/reports/finance");
+    await expect(page.getByRole("navigation", { name: "Reports" }).getByRole("link", { name: "Finance & tax" })).toHaveAttribute("aria-current", "page");
+    await page.getByRole("combobox", { name: "Period" }).selectOption("ytd");
+    await page.getByRole("button", { name: "Show" }).click();
+    await expect(page).toHaveURL(/range=ytd/);
+    const csv = await page.request.get("/api/reports/tax?range=ytd");
+    expect(csv.status()).toBe(200);
+    expect(await csv.text()).toContain("month,net_sales");
+  });
+});

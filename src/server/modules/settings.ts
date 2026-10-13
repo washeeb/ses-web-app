@@ -45,6 +45,8 @@ export const settingsSchema = z.object({
   aiDailyLimitPerUser: z.number().int().min(0).max(500),
   supportEmail: z.string().email(),
   supportPhone: z.string().max(40),
+  /** Monday e-mail summary of the past week to staff who can read reports. */
+  weeklyReport: z.boolean(),
   /** Data Protection Commission (Ghana) registration — shown publicly once set. */
   dpcRegistrationNumber: z.string().trim().max(60),
   /** ISO date (YYYY-MM-DD) the DPC certificate expires (certificates last two years), or "". */
@@ -76,6 +78,7 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   aiDailyLimitPerUser: 20,
   supportEmail: "support@synclyticsenterprisesystems.com",
   supportPhone: "+233 00 000 0000",
+  weeklyReport: true,
   dpcRegistrationNumber: "",
   dpcRegistrationExpires: "",
 };

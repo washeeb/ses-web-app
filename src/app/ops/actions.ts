@@ -467,6 +467,7 @@ export async function updateSettingsAction(_: Prev, fd: FormData) {
       paymentInstructions: str(fd, "paymentInstructions"),
       supportEmail: str(fd, "supportEmail"),
       supportPhone: str(fd, "supportPhone"),
+      weeklyReport: bool(fd, "weeklyReport"),
       dpcRegistrationNumber: str(fd, "dpcRegistrationNumber"),
       dpcRegistrationExpires: str(fd, "dpcRegistrationExpires"),
     });

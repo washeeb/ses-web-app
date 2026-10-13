@@ -5,6 +5,7 @@ import { runMaintenance } from "./modules/maintenance";
 import { onInboundDead, processInboundEvent } from "./modules/integrations/inbound";
 import { deliverOutbound } from "./modules/integrations/outbound";
 import { checkLowStock, expireReservations } from "./modules/inventory";
+import { sendWeeklyDigest } from "./modules/analytics";
 import { deliverMail } from "./modules/mail";
 import { verifyAndApplyPayment } from "./modules/payments/paystack";
 import { sendInvoiceReminders } from "./modules/invoices";
@@ -15,6 +16,9 @@ export const JOB_HANDLERS: JobHandlers = {
   "integration.inbound.process": (db, payload) => processInboundEvent(db, String(payload.inboundEventId)),
   "integration.outbound.deliver": (db, payload, job) => deliverOutbound(db, payload, job),
   "mail.send": (db, payload) => deliverMail(db, payload),
+  "reports.weekly": async (db) => {
+    await sendWeeklyDigest(db);
+  },
   "maintenance.hourly": async (db) => {
     await runMaintenance(db);
     await checkLowStock(db);
@@ -39,6 +43,8 @@ export async function tick(db: DB) {
   await enqueue(db, { type: "maintenance.hourly", dedupeKey: `maintenance:${new Date().toISOString().slice(0, 13)}`, maxAttempts: 3 });
   // Overdue-invoice reminders once a day, after 08:00 UTC (Accra time).
   const now = new Date();
+  // Weekly summary e-mail: Mondays from 07:00, once per week.
+  if (now.getUTCDay() === 1 && now.getUTCHours() >= 7) await enqueue(db, { type: "reports.weekly", dedupeKey: `reports:weekly:${now.toISOString().slice(0, 10)}`, maxAttempts: 3 });
   if (now.getUTCHours() >= 8) await enqueue(db, { type: "invoices.reminders", dedupeKey: `invoices:reminders:${now.toISOString().slice(0, 10)}`, maxAttempts: 3 });
   // Subscription renewals and ticket auto-close daily; SLA breach checks every minute.
   if (now.getUTCHours() >= 6) await enqueue(db, { type: "services.daily", dedupeKey: `services:daily:${now.toISOString().slice(0, 10)}`, maxAttempts: 3 });
