@@ -80,7 +80,7 @@ export async function receiveAction(_: ActionState, fd: FormData): Promise<Actio
     const lines = fd
       .getAll("lineId")
       .map(String)
-      .map((lineId) => ({ lineId, quantity: Number(str(fd, `qty-${lineId}`) || "0") }));
+      .map((lineId) => ({ lineId, quantity: Number(str(fd, `qty-${lineId}`) || "0"), serials: str(fd, `serials-${lineId}`) || undefined }));
     if (lines.some((l) => !Number.isInteger(l.quantity) || l.quantity < 0)) throw invalid("Quantities must be whole numbers.");
     const r = await receiveGoods(getDb(), actor, id, { notes: str(fd, "notes"), lines });
     revalidatePath(`/ops/procurement/${id}`);

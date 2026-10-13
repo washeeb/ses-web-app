@@ -109,7 +109,7 @@ async function ensureLocation(tx: DB, conn: Connection, code: string) {
   if (existing) return existing;
   const [loc] = await tx
     .insert(stockLocations)
-    .values({ code: fullCode, name: `${org!.name} — ${code}${conn.mode === "simulator" ? " (simulated)" : ""}`, organizationId: org!.id, connectionId: conn.id })
+    .values({ code: fullCode, name: `${org!.name} — ${code}${conn.mode === "simulator" ? " (simulated)" : ""}`, organizationId: org!.id, connectionId: conn.id, kind: "partner" })
     .returning();
   return loc!;
 }

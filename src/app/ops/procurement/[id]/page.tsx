@@ -94,13 +94,19 @@ export default async function PoPage({ params }: { params: Promise<{ id: string 
               <ActionForm action={receiveAction} submitLabel="Record goods receipt" submitClassName="btn btn-accent">
                 <input type="hidden" name="id" value={po.id} />
                 <div className="space-y-2">
-                  {outstanding.map(({ line }) => (
+                  {outstanding.map(({ line, serialTracked }) => (
                     <div key={line.id} className="grid items-center gap-2 sm:grid-cols-[1fr_8rem]">
                       <input type="hidden" name="lineId" value={line.id} />
                       <label htmlFor={`qty-${line.id}`} className="text-sm">
                         {line.description} <span className="text-slate-500">({line.quantity - line.receivedQuantity} outstanding)</span>
                       </label>
                       <input id={`qty-${line.id}`} name={`qty-${line.id}`} type="number" min={0} max={line.quantity - line.receivedQuantity} defaultValue={line.quantity - line.receivedQuantity} className="field" />
+                      {serialTracked && (
+                        <div className="sm:col-span-2">
+                          <label htmlFor={`serials-${line.id}`} className="text-xs font-medium">Serial numbers (one per unit received)</label>
+                          <textarea id={`serials-${line.id}`} name={`serials-${line.id}`} rows={2} className="field font-mono text-sm uppercase" />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

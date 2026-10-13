@@ -9,6 +9,7 @@ import { ActionForm } from "@/components/action-form";
 import { Card, DateTime, Money, PageHeader, StatusBadge, TableWrap } from "@/components/ui";
 import { LiveRefresh } from "@/components/live-refresh";
 import { orderAction } from "../../actions";
+import { serialsInStock, serialsNeeded } from "@/server/modules/inventory";
 import { listPayments } from "@/server/modules/payments/paystack";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { balanceOf, invoiceForOrder } from "@/server/modules/invoices";
@@ -25,6 +26,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const holds = o.reservations.filter((r) => r.status === "active");
   const payments = await listPayments(getDb(), o.id);
   const invoice = await invoiceForOrder(getDb(), o.id);
+  const needSerials = o.status === "confirmed" ? await serialsNeeded(getDb(), o.id) : [];
+  const serialChoices = await Promise.all(needSerials.map((n) => serialsInStock(getDb(), n.variantId, n.locationId)));
   return (
     <>
       <PageHeader
@@ -130,6 +133,13 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                   <ActionForm action={orderAction} submitLabel="Mark fulfilled" submitClassName="btn btn-accent w-full">
                     <input type="hidden" name="id" value={o.id} />
                     <input type="hidden" name="op" value="fulfil" />
+                    {needSerials.map((n, i) => (
+                      <div key={n.variantId + n.locationId}>
+                        <label className="field-label" htmlFor={`serials-${n.variantId}`}>Serial numbers: {n.name} ({n.sku}) × {n.quantity}</label>
+                        <textarea id={`serials-${n.variantId}`} name={`serials_${n.variantId}`} rows={Math.min(4, n.quantity)} className="field font-mono text-sm uppercase" required placeholder="One per line, or scan" />
+                        <p className="mt-1 text-xs text-slate-600">{serialChoices[i]!.length ? `In stock: ${serialChoices[i]!.slice(0, 12).map((s) => s.serial).join(", ")}` : "No serials recorded in stock at this location."}</p>
+                      </div>
+                    ))}
                   </ActionForm>
                 )}
                 <ActionForm action={orderAction} submitLabel="Cancel order" submitClassName="btn btn-danger w-full" confirm="Cancel this order and release its stock?">

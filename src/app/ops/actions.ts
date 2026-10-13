@@ -10,7 +10,7 @@ import { invalid } from "@/server/lib/errors";
 import { convertLeadToCustomer, createQuote, cancelOrder, confirmOrder, fulfilOrder, sendQuote, submitQuote, updateLeadStatus } from "@/server/modules/sales";
 import { decideApproval } from "@/server/modules/approvals";
 import { addVariant, createProduct, requestPriceChange, updateProduct } from "@/server/modules/catalogue";
-import { adjustStock } from "@/server/modules/inventory";
+import { adjustStock, parseSerials } from "@/server/modules/inventory";
 import { addImage, deleteImage, inspectImage, OWNER_TYPES, updateImage, type OwnerType } from "@/server/modules/media";
 import { assertImageOwner, deleteBrand, deleteCategory, deleteTag, renameTag, saveBrand, saveCategory } from "@/server/modules/taxonomy";
 import {
@@ -109,7 +109,12 @@ export async function orderAction(_: Prev, fd: FormData) {
     const id = str(fd, "id");
     const op = str(fd, "op");
     if (op === "confirm") await confirmOrder(getDb(), actor, id);
-    else if (op === "fulfil") await fulfilOrder(getDb(), actor, id);
+    else if (op === "fulfil") {
+      // Serial numbers arrive as serials_<itemId>, one per line or comma-separated.
+      const serials: Record<string, string[]> = {};
+      for (const [key, value] of fd.entries()) if (key.startsWith("serials_") && typeof value === "string" && value.trim()) serials[key.slice(8)] = parseSerials(value);
+      await fulfilOrder(getDb(), actor, id, serials);
+    }
     else if (op === "cancel") await cancelOrder(getDb(), actor, id, str(fd, "reason"));
     else throw invalid("Unknown operation.");
     revalidatePath(`/ops/orders/${id}`);

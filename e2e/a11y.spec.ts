@@ -40,6 +40,17 @@ test.describe("catalogue pages (procurement officer)", () => {
   }
 });
 
+test.describe("inventory pages (warehouse officer)", () => {
+  test.use({ storageState: STATE.warehouse });
+  for (const path of ["/ops/inventory", "/ops/inventory/receive", "/ops/inventory/transfers", "/ops/inventory/counts", "/ops/inventory/reorder", "/ops/inventory/serials?q=FW", "/ops/inventory/labels?code_0=SES-LAP14-I5-16&qty_0=2", "/ops/inventory/movements", "/ops/inventory/locations"]) {
+    test(`${path} is accessible`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.locator("main h1")).toBeVisible();
+      await expectAccessible(page, path);
+    });
+  }
+});
+
 test.describe("customer pages", () => {
   test.use({ storageState: STATE.customer });
   for (const path of ["/portal", "/portal/invoices", "/portal/support", "/portal/support/new", "/portal/subscriptions", "/portal/projects", "/portal/assets", "/portal/returns", "/portal/notifications"]) {

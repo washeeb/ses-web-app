@@ -4,7 +4,10 @@ import { requireActor } from "@/server/web/session";
 import { getProductAdmin } from "@/server/modules/catalogue";
 import { listBrands, listCategoriesTree, listTags } from "@/server/modules/taxonomy";
 import { ImageManager } from "@/components/image-manager";
-import { listLocations, listMovements } from "@/server/modules/inventory";
+import { listLocations, listMovements, MOVEMENT_LABELS } from "@/server/modules/inventory";
+import { listSuppliers } from "@/server/modules/procurement";
+import { LocationSelect } from "@/components/stock-ui";
+import { stockAction, stockSettingsAction } from "../../inventory-actions";
 import { can } from "@/server/authz/policy";
 import { AppError } from "@/server/lib/errors";
 import { ActionForm } from "@/components/action-form";
@@ -23,7 +26,8 @@ export default async function ProductAdminPage({ params }: { params: Promise<{ i
     throw e;
   });
   const [categories, brands, allTags, locations] = await Promise.all([listCategoriesTree(db), listBrands(db), listTags(db), listLocations(db)]);
-  const sesLocations = locations.filter((l) => !l.connectionId);
+  const sesLocations = locations.filter((l) => !l.connectionId && l.active);
+  const suppliers = can(actor, "procurement.read") ? await listSuppliers(db, actor) : [];
   const { product: p, variants, images, tags: productTagList } = data;
   const movements = can(actor, "inventory.read")
     ? Object.fromEntries(await Promise.all(variants.filter((v) => v.tracksStock).map(async (v) => [v.id, await listMovements(db, actor, v.id, 10)] as const)))
@@ -95,7 +99,7 @@ export default async function ProductAdminPage({ params }: { params: Promise<{ i
                     {movements[v.id]!.map(({ m, locationName }) => (
                       <li key={m.id} className="flex flex-wrap justify-between gap-2">
                         <span>
-                          <strong className={m.quantity > 0 ? "text-emerald-700" : "text-red-700"}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</strong> {m.reason} · {locationName}
+                          <strong className={m.quantity > 0 ? "text-emerald-700" : "text-red-700"}>{m.quantity > 0 ? `+${m.quantity}` : m.quantity}</strong> {MOVEMENT_LABELS[m.reason] ?? m.reason} · {locationName}
                           {m.note && <span className="text-slate-500"> — {m.note}</span>}
                         </span>
                         <Ago value={m.createdAt} />
@@ -138,7 +142,41 @@ export default async function ProductAdminPage({ params }: { params: Promise<{ i
                     </div>
                   </ActionForm>
                 )}
+                {canAdjust && v.tracksStock && sesLocations.length > 0 && (
+                  <ActionForm action={stockAction} submitLabel="Receive" submitClassName="btn btn-ghost" resetOnSuccess>
+                    <input type="hidden" name="op" value="receive" />
+                    <input type="hidden" name="variantId" value={v.id} />
+                    <LocationSelect id={`rl-${v.id}`} label="Receive into" locations={sesLocations} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Field label="Quantity" htmlFor={`rq-${v.id}`}><input id={`rq-${v.id}`} name="quantity" type="number" min={1} className="field" required /></Field>
+                      <Field label="Unit cost (GHS)" htmlFor={`ruc-${v.id}`}><input id={`ruc-${v.id}`} name="unitCost" className="field" inputMode="decimal" /></Field>
+                    </div>
+                    {v.serialTracked && <Field label="Serial numbers" htmlFor={`rs-${v.id}`}><textarea id={`rs-${v.id}`} name="serials" rows={2} className="field font-mono text-sm uppercase" required /></Field>}
+                    <Field label="Note" htmlFor={`rn-${v.id}`}><input id={`rn-${v.id}`} name="note" className="field" maxLength={300} placeholder="Supplier, delivery note" /></Field>
+                  </ActionForm>
+                )}
               </div>
+              {canWrite && v.tracksStock && (
+                <details className="mt-4 rounded-lg border border-slate-200 p-3 text-sm">
+                  <summary className="cursor-pointer font-medium text-teal-700">Stock settings (barcode, reorder, serials){v.costMinor !== null && <span className="font-normal text-slate-600"> · average cost {(v.costMinor / 100).toFixed(2)}</span>}</summary>
+                  <ActionForm action={stockSettingsAction} submitLabel="Save stock settings" submitClassName="btn btn-ghost" className="mt-3 space-y-3">
+                    <input type="hidden" name="variantId" value={v.id} />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Barcode (EAN/UPC)" htmlFor={`bc-${v.id}`}><input id={`bc-${v.id}`} name="barcode" className="field font-mono" maxLength={40} defaultValue={v.barcode ?? ""} /></Field>
+                      <Field label="Preferred supplier" htmlFor={`ps-${v.id}`}>
+                        <select id={`ps-${v.id}`} name="preferredSupplierId" className="field" defaultValue={v.preferredSupplierId ?? ""}>
+                          <option value="">None</option>
+                          {suppliers.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      </Field>
+                      <Field label="Reorder at (SES units available)" htmlFor={`rp-${v.id}`}><input id={`rp-${v.id}`} name="reorderPoint" type="number" min={0} className="field" defaultValue={v.reorderPoint ?? ""} /></Field>
+                      <Field label="Usual order quantity" htmlFor={`roq-${v.id}`}><input id={`roq-${v.id}`} name="reorderQty" type="number" min={1} className="field" defaultValue={v.reorderQty ?? ""} /></Field>
+                      <Field label="Lead time (days)" htmlFor={`lt-${v.id}`}><input id={`lt-${v.id}`} name="leadTimeDays" type="number" min={0} max={365} className="field" defaultValue={v.leadTimeDays ?? ""} /></Field>
+                    </div>
+                    <label className="flex items-center gap-2"><input type="checkbox" name="serialTracked" defaultChecked={v.serialTracked} /> Track serial numbers (recorded on receipt, sale and the warranty)</label>
+                  </ActionForm>
+                </details>
+              )}
             </Card>
           ))}
           {canWrite && (

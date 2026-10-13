@@ -4,7 +4,7 @@ import { enqueue, runDueJobs, type JobHandlers } from "./modules/jobs";
 import { runMaintenance } from "./modules/maintenance";
 import { onInboundDead, processInboundEvent } from "./modules/integrations/inbound";
 import { deliverOutbound } from "./modules/integrations/outbound";
-import { expireReservations } from "./modules/inventory";
+import { checkLowStock, expireReservations } from "./modules/inventory";
 import { deliverMail } from "./modules/mail";
 import { verifyAndApplyPayment } from "./modules/payments/paystack";
 import { sendInvoiceReminders } from "./modules/invoices";
@@ -17,6 +17,7 @@ export const JOB_HANDLERS: JobHandlers = {
   "mail.send": (db, payload) => deliverMail(db, payload),
   "maintenance.hourly": async (db) => {
     await runMaintenance(db);
+    await checkLowStock(db);
   },
   "invoices.reminders": async (db) => {
     await sendInvoiceReminders(db);

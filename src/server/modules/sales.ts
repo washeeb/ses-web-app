@@ -469,7 +469,8 @@ export async function confirmOrder(db: DB, actor: Actor, id: string) {
   publish({ topic: "orders", orgIds: [o.customerOrgId] });
 }
 
-export async function fulfilOrder(db: DB, actor: Actor, id: string) {
+/** Fulfils an order. Serial-tracked items from SES stock need their serial numbers (by item id); they go on the warranty. */
+export async function fulfilOrder(db: DB, actor: Actor, id: string, serialsByVariant: Record<string, string[]> = {}) {
   authorize(actor, "orders.write");
   const o = await db.transaction(async (tx) => {
     const o = await lockOrder(tx, id);
@@ -479,7 +480,7 @@ export async function fulfilOrder(db: DB, actor: Actor, id: string) {
       .from(orderLines)
       .where(and(eq(orderLines.orderId, id), inArray(orderLines.fulfilmentStatus, ["requested", "accepted", "rejected"])));
     if (open.length) throw conflict("Partner-fulfilled lines must be shipped or delivered first.");
-    await consumeReservations(tx, id);
+    await consumeReservations(tx, id, serialsByVariant);
     const fulfilledAt = new Date();
     await tx.update(orders).set({ status: "fulfilled", fulfilledAt }).where(eq(orders.id, id));
     const warrantyCount = await createWarrantiesForOrder(tx, id, fulfilledAt);

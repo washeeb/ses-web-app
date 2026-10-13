@@ -106,7 +106,7 @@ describe("stock ledger", () => {
     await confirmOrder(db, wh, order.id);
     await fulfilOrder(db, wh, order.id);
     const reasons = (await db.select().from(stockMovements)).map((m) => `${m.reason}:${m.quantity}`);
-    expect(reasons).toContain("adjustment:3"); // 2 → 5
+    expect(reasons).toContain("count:3"); // counted 2 → 5
     expect(reasons).toContain("fulfilment:-1");
   });
 });

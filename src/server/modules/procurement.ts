@@ -19,7 +19,7 @@ import { conflict, forbidden, invalid, notFound } from "../lib/errors";
 import { formatMoney } from "../lib/money";
 import { audit } from "./audit";
 import { publish } from "./events";
-import { recordMovement } from "./inventory";
+import { receiveStockTx, reorderList } from "./inventory";
 import { sendMail } from "./mail";
 import { getSettings, nextNumber, operatorOrgId } from "./settings";
 import { announce, notifyApprovers, notifyUsers } from "./notifications";
@@ -111,7 +111,7 @@ export async function getPurchaseOrder(db: DB, actor: Actor, id: string) {
     .where(eq(purchaseOrders.id, id));
   if (!row) throw notFound("Purchase order not found.");
   const lines = await db
-    .select({ line: purchaseOrderLines, sku: productVariants.sku })
+    .select({ line: purchaseOrderLines, sku: productVariants.sku, serialTracked: productVariants.serialTracked })
     .from(purchaseOrderLines)
     .leftJoin(productVariants, eq(productVariants.id, purchaseOrderLines.variantId))
     .where(eq(purchaseOrderLines.purchaseOrderId, id))
@@ -285,12 +285,12 @@ export async function cancelPurchaseOrder(db: DB, actor: Actor, id: string, reas
 
 export const receiptInput = z.object({
   notes: z.string().trim().max(1000).optional().default(""),
-  lines: z.array(z.object({ lineId: z.string().uuid(), quantity: z.number().int().min(0) })).min(1),
+  lines: z.array(z.object({ lineId: z.string().uuid(), quantity: z.number().int().min(0), serials: z.string().optional() })).min(1),
 });
 
 /**
- * Goods receipt: adds stock at the PO's location, writes the stock ledger and moves the PO to
- * partially_received / received. Over-receipt is refused.
+ * Goods receipt: adds stock at the PO's location (updating the average cost from the PO's unit cost and recording
+ * serial numbers), writes the stock ledger and moves the PO to partially_received / received. Over-receipt is refused.
  */
 export async function receiveGoods(db: DB, actor: Actor, id: string, input: z.input<typeof receiptInput>) {
   authorize(actor, "procurement.receive");
@@ -312,19 +312,13 @@ export async function receiveGoods(db: DB, actor: Actor, id: string, input: z.in
       if (w.quantity > outstanding) throw conflict(`Cannot receive ${w.quantity} of "${line.description}": only ${outstanding} outstanding.`);
       await tx.update(purchaseOrderLines).set({ receivedQuantity: line.receivedQuantity + w.quantity }).where(eq(purchaseOrderLines.id, line.id));
       line.receivedQuantity += w.quantity;
-      await tx.insert(goodsReceiptLines).values({ goodsReceiptId: grn!.id, purchaseOrderLineId: line.id, quantity: w.quantity });
+      const serials = w.serials ? w.serials.split(/[\s,;]+/).filter(Boolean).map((x) => x.toUpperCase()) : [];
+      await tx.insert(goodsReceiptLines).values({ goodsReceiptId: grn!.id, purchaseOrderLineId: line.id, quantity: w.quantity, serials });
       if (line.variantId) {
-        const [lvl] = await tx
-          .select()
-          .from(stockLevels)
-          .where(and(eq(stockLevels.variantId, line.variantId), eq(stockLevels.locationId, po.locationId)))
-          .for("update");
-        if (lvl) {
-          await tx.update(stockLevels).set({ onHand: sql`${stockLevels.onHand} + ${w.quantity}`, sourceUpdatedAt: new Date() }).where(eq(stockLevels.id, lvl.id));
-        } else {
-          await tx.insert(stockLevels).values({ variantId: line.variantId, locationId: po.locationId, onHand: w.quantity });
+        const [v] = await tx.select({ tracksStock: productVariants.tracksStock }).from(productVariants).where(eq(productVariants.id, line.variantId));
+        if (v?.tracksStock) {
+          await receiveStockTx(tx, actor, { variantId: line.variantId, locationId: po.locationId, quantity: w.quantity, unitCostMinor: line.unitCostMinor, serials, note: `${po.number} · ${grn!.number}` }, { type: "goods_receipt", id: grn!.id });
         }
-        await recordMovement(tx, { variantId: line.variantId, locationId: po.locationId, quantity: w.quantity, reason: "receipt", refType: "goods_receipt", refId: grn!.id, actorUserId: actor.userId });
       }
     }
     const complete = lines.every((l) => l.receivedQuantity >= l.quantity);
@@ -338,4 +332,38 @@ export async function receiveGoods(db: DB, actor: Actor, id: string, input: z.in
   publish({ topic: "stock" });
   announce();
   return result;
+}
+
+/**
+ * Turns the reorder list into draft purchase orders, one per preferred supplier, delivered to the default location
+ * at each item's average cost. Items without a preferred supplier are returned so staff can order them by hand.
+ */
+export async function draftOrdersFromReorder(db: DB, actor: Actor) {
+  authorize(actor, "procurement.write");
+  const list = await reorderList(db, actor);
+  const { defaultLocationId } = await import("./inventory");
+  const locationId = await defaultLocationId(db);
+  const bySupplier = new Map<string, typeof list>();
+  const unassigned: typeof list = [];
+  for (const r of list) {
+    if (!r.preferredSupplierId) unassigned.push(r);
+    else bySupplier.set(r.preferredSupplierId, [...(bySupplier.get(r.preferredSupplierId) ?? []), r]);
+  }
+  const created: { id: string; number: string }[] = [];
+  for (const [supplierId, rows] of bySupplier) {
+    const po = await createPurchaseOrder(db, actor, { supplierId, locationId, notes: "Drafted from the reorder list.", lines: rows.map((r) => ({ variantId: r.variantId, description: r.name, quantity: r.suggestedQty, unitCostMinor: r.costMinor ?? 0 })) });
+    created.push({ id: po.id, number: po.number });
+  }
+  return { created, unassigned: unassigned.map((u) => ({ sku: u.sku, name: u.name })) };
+}
+
+/** Units still to arrive on open purchase orders, per item (so the reorder screen does not order twice). */
+export async function onOrderByVariant(db: DB) {
+  const rows = await db
+    .select({ variantId: purchaseOrderLines.variantId, qty: sql<number>`sum(${purchaseOrderLines.quantity} - ${purchaseOrderLines.receivedQuantity})::int` })
+    .from(purchaseOrderLines)
+    .innerJoin(purchaseOrders, eq(purchaseOrders.id, purchaseOrderLines.purchaseOrderId))
+    .where(inArray(purchaseOrders.status, ["draft", "pending_approval", "approved", "sent", "partially_received"]))
+    .groupBy(purchaseOrderLines.variantId);
+  return new Map(rows.filter((r) => r.variantId).map((r) => [r.variantId!, r.qty]));
 }

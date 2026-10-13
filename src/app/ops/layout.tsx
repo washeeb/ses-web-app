@@ -42,6 +42,20 @@ const NAV: { label: string | null; items: Entry[] }[] = [
       { href: "/ops/procurement", label: "Procurement", perm: "procurement.read" },
     ],
   },
+  {
+    label: "Inventory",
+    items: [
+      { href: "/ops/inventory", label: "Stock levels", perm: "inventory.read", exact: true },
+      { href: "/ops/inventory/receive", label: "Receive & adjust", perm: "inventory.adjust" },
+      { href: "/ops/inventory/transfers", label: "Transfers", perm: "inventory.read" },
+      { href: "/ops/inventory/counts", label: "Stocktakes", perm: "inventory.read" },
+      { href: "/ops/inventory/reorder", label: "Reorder", perm: "inventory.read" },
+      { href: "/ops/inventory/serials", label: "Serial numbers", perm: "inventory.read" },
+      { href: "/ops/inventory/labels", label: "Labels", perm: "inventory.read" },
+      { href: "/ops/inventory/movements", label: "Movements", perm: "inventory.read" },
+      { href: "/ops/inventory/locations", label: "Locations", perm: "inventory.read" },
+    ],
+  },
   { label: "Finance", items: [{ href: "/ops/invoices", label: "Invoices", perm: "finance.read" }] },
   {
     label: "Reports",

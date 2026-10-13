@@ -325,11 +325,23 @@ export const productVariants = pgTable(
     billingPeriod: text("billing_period"),
     /** Manufacturer/SES warranty from the fulfilment date; 0 = none. */
     warrantyMonths: integer("warranty_months").notNull().default(0),
+    /** Average cost per unit of SES-held stock (weighted on each receipt). */
+    costMinor: money("cost_minor"),
+    /** Manufacturer barcode (EAN/UPC) if the item has one; labels use the SKU otherwise. */
+    barcode: text("barcode"),
+    /** Alert and suggest a purchase when sellable stock falls to this level. */
+    reorderPoint: integer("reorder_point"),
+    reorderQty: integer("reorder_qty"),
+    /** Each unit has a serial number, recorded on receipt and on sale (and on its warranty). */
+    serialTracked: boolean("serial_tracked").notNull().default(false),
+    preferredSupplierId: uuid("preferred_supplier_id"),
+    leadTimeDays: integer("lead_time_days"),
+    lowStockNotifiedAt: ts("low_stock_notified_at"),
     active: boolean("active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [check("price_non_negative", sql`${t.priceMinor} >= 0`)],
+  (t) => [check("price_non_negative", sql`${t.priceMinor} >= 0`), uniqueIndex("product_variants_barcode_unique").on(t.barcode).where(sql`${t.barcode} IS NOT NULL`)],
 );
 
 export const stockLocations = pgTable("stock_locations", {
@@ -339,6 +351,14 @@ export const stockLocations = pgTable("stock_locations", {
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   /** set when stock at this location is supplied by a partner connection */
   connectionId: uuid("connection_id"),
+  /** warehouse | shop | van | other | partner (partner = fed by a connection, never edited by hand) */
+  kind: text("kind").notNull().default("warehouse"),
+  /** Stock here can be sold (not a quarantine or damaged-goods location). */
+  sellable: boolean("sellable").notNull().default(true),
+  /** Where deliveries go unless another location is chosen. */
+  isDefault: boolean("is_default").notNull().default(false),
+  active: boolean("active").notNull().default(true),
+  address: text("address"),
 });
 
 export const stockLevels = pgTable(
@@ -763,6 +783,7 @@ export const goodsReceiptLines = pgTable("goods_receipt_lines", {
   goodsReceiptId: uuid("goods_receipt_id").notNull().references(() => goodsReceipts.id),
   purchaseOrderLineId: uuid("purchase_order_line_id").notNull().references(() => purchaseOrderLines.id),
   quantity: integer("quantity").notNull(),
+  serials: text("serials").array().notNull().default(sql`'{}'::text[]`),
 });
 
 /** Ledger of every change to SES-managed stock (partner stock is owned by the partner feed). */
@@ -774,8 +795,13 @@ export const stockMovements = pgTable(
     locationId: uuid("location_id").notNull().references(() => stockLocations.id),
     /** Signed change to on-hand quantity. */
     quantity: integer("quantity").notNull(),
-    /** receipt | adjustment | fulfilment | return */
+    /**
+     * receipt | fulfilment | return | transfer_out | transfer_in | count | damaged | lost | expired | internal_use |
+     * supplier_return | found | correction (older rows: adjustment)
+     */
     reason: text("reason").notNull(),
+    /** Average cost per unit when the movement happened. */
+    unitCostMinor: money("unit_cost_minor"),
     refType: text("ref_type"),
     refId: text("ref_id"),
     note: text("note"),
@@ -783,6 +809,93 @@ export const stockMovements = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index().on(t.variantId, t.createdAt)],
+);
+
+/** One physical unit of a serial-tracked item. */
+export const stockSerials = pgTable(
+  "stock_serials",
+  {
+    id: id(),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id),
+    serial: text("serial").notNull(),
+    /** in_stock | in_transit | sold | written_off | returned_to_supplier */
+    status: text("status").notNull().default("in_stock"),
+    locationId: uuid("location_id").references(() => stockLocations.id),
+    orderId: uuid("order_id"),
+    receivedAt: ts("received_at").notNull().defaultNow(),
+    soldAt: ts("sold_at"),
+    note: text("note"),
+  },
+  (t) => [unique().on(t.variantId, t.serial), index().on(t.serial)],
+);
+
+/** Moving stock between locations: draft → in_transit (left the source) → received (arrived), or cancelled. */
+export const stockTransfers = pgTable("stock_transfers", {
+  id: id(),
+  number: text("number").notNull().unique(),
+  fromLocationId: uuid("from_location_id").notNull().references(() => stockLocations.id),
+  toLocationId: uuid("to_location_id").notNull().references(() => stockLocations.id),
+  /** draft | in_transit | received | cancelled */
+  status: text("status").notNull().default("draft"),
+  note: text("note"),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  dispatchedBy: uuid("dispatched_by").references(() => users.id),
+  dispatchedAt: ts("dispatched_at"),
+  receivedBy: uuid("received_by").references(() => users.id),
+  receivedAt: ts("received_at"),
+  createdAt: createdAt(),
+});
+
+export const stockTransferLines = pgTable(
+  "stock_transfer_lines",
+  {
+    id: id(),
+    transferId: uuid("transfer_id").notNull().references(() => stockTransfers.id),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id),
+    quantity: integer("quantity").notNull(),
+    /** Serial numbers moved (serial-tracked items). */
+    serials: text("serials").array().notNull().default(sql`'{}'::text[]`),
+  },
+  (t) => [unique().on(t.transferId, t.variantId), check("transfer_qty_positive", sql`${t.quantity} > 0`)],
+);
+
+/**
+ * Stocktake for one location. Each line records the system quantity at the moment it is counted, and completion
+ * posts counted − that quantity, so sales made while counting are neither undone nor double-counted.
+ */
+export const stockCounts = pgTable("stock_counts", {
+  id: id(),
+  number: text("number").notNull().unique(),
+  locationId: uuid("location_id").notNull().references(() => stockLocations.id),
+  categoryId: uuid("category_id").references(() => categories.id),
+  /** Counters do not see expected quantities. */
+  blind: boolean("blind").notNull().default(true),
+  /** open | completed | cancelled */
+  status: text("status").notNull().default("open"),
+  note: text("note"),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  completedBy: uuid("completed_by").references(() => users.id),
+  completedAt: ts("completed_at"),
+  /** Value of the differences posted (negative = shortage). */
+  varianceValueMinor: money("variance_value_minor"),
+  createdAt: createdAt(),
+});
+
+export const stockCountLines = pgTable(
+  "stock_count_lines",
+  {
+    id: id(),
+    countId: uuid("count_id").notNull().references(() => stockCounts.id),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id),
+    /** System quantity when the count started (shown to counters unless the count is blind). */
+    expected: integer("expected").notNull(),
+    counted: integer("counted"),
+    /** System quantity at the moment this line was counted; the adjustment is counted − this. */
+    systemAtCount: integer("system_at_count"),
+    countedAt: ts("counted_at"),
+    unitCostMinor: money("unit_cost_minor"),
+  },
+  (t) => [unique().on(t.countId, t.variantId)],
 );
 
 // ───────────────────────────── Documents ─────────────────────────────
@@ -824,6 +937,8 @@ export const warranties = pgTable(
     customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
     variantId: uuid("variant_id").notNull().references(() => productVariants.id),
     quantity: integer("quantity").notNull(),
+    /** Serial numbers of the units covered (serial-tracked items). */
+    serials: text("serials").array().notNull().default(sql`'{}'::text[]`),
     startsAt: ts("starts_at").notNull(),
     endsAt: ts("ends_at").notNull(),
     createdAt: createdAt(),

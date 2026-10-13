@@ -1,4 +1,5 @@
 import { asc, desc, eq, inArray } from "drizzle-orm";
+import { MOVEMENT_LABELS, searchMovements, stockOverview } from "./inventory";
 import type { DB } from "../db/client";
 import {
   assets,
@@ -83,7 +84,8 @@ export const EXPORTS: Record<string, { label: string; perm: Permission }> = {
   leads: { label: "Leads", perm: "leads.read" },
   orders: { label: "Orders", perm: "orders.read" },
   products: { label: "Products & prices", perm: "catalogue.read" },
-  stock: { label: "Stock by location", perm: "inventory.read" },
+  stock: { label: "Stock levels and value", perm: "inventory.read" },
+  movements: { label: "Stock movements (ledger)", perm: "inventory.read" },
   "purchase-orders": { label: "Purchase orders", perm: "procurement.read" },
   returns: { label: "Returns & warranty claims", perm: "returns.manage" },
   invoices: { label: "Invoices", perm: "finance.read" },
@@ -97,7 +99,10 @@ export const EXPORTS: Record<string, { label: string; perm: Permission }> = {
 const money = (minor: number | null | undefined) => (minor === null || minor === undefined ? "" : (minor / 100).toFixed(2));
 
 /** Bulk export: needs data.export plus read access to the data itself. Every export is audited. */
-export async function exportCsv(db: DB, actor: Actor, kind: string) {
+const day = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00Z`) : undefined);
+
+/** Optional filters come from the page the export was started on (?q=&location=&category=&low=1, ?from=&to=&reason=). */
+export async function exportCsv(db: DB, actor: Actor, kind: string, params: URLSearchParams = new URLSearchParams()) {
   const def = EXPORTS[kind];
   if (!def) throw invalid("Unknown export.");
   authorize(actor, "data.export");
@@ -135,14 +140,16 @@ export async function exportCsv(db: DB, actor: Actor, kind: string) {
       break;
     }
     case "stock": {
-      const r = await db
-        .select({ sku: productVariants.sku, location: stockLocations.code, l: stockLevels })
-        .from(stockLevels)
-        .innerJoin(productVariants, eq(productVariants.id, stockLevels.variantId))
-        .innerJoin(stockLocations, eq(stockLocations.id, stockLevels.locationId))
-        .orderBy(asc(productVariants.sku));
-      header = ["sku", "location", "on_hand", "reserved", "available", "updated_at"];
-      rows = r.map(({ sku, location, l }) => [sku, location, l.onHand, l.reserved, Math.max(0, l.onHand - l.reserved), l.sourceUpdatedAt]);
+      const r = await stockOverview(db, actor, { q: params.get("q") ?? undefined, locationId: params.get("location") || undefined, categoryId: params.get("category") || undefined, lowOnly: params.get("low") === "1" });
+      header = ["sku", "barcode", "item", "category", "ses_on_hand", "reserved", "available", "partner_available", "status", "reorder_point", "reorder_qty", "average_cost", "value", "locations"];
+      rows = r.map((x) => [x.sku, x.barcode, x.name, x.categoryName, x.onHand, x.reserved, x.available, x.partnerAvailable, x.status, x.reorderPoint, x.reorderQty, money(x.costMinor), money(x.valueMinor), x.levels.map((l) => `${l.locationCode}: ${l.onHand}`).join("; ")]);
+      break;
+    }
+    case "movements": {
+      const to = day(params.get("to"));
+      const r = await searchMovements(db, actor, { from: day(params.get("from")), to: to && new Date(to.getTime() + 86_400_000), reason: params.get("reason") || undefined, locationId: params.get("location") || undefined, q: params.get("q") ?? undefined, limit: 5000 });
+      header = ["when", "sku", "item", "location", "change", "reason", "unit_cost", "value", "reference", "note", "by"];
+      rows = r.map((x) => [x.m.createdAt, x.sku, x.productName, x.locationName, x.m.quantity, MOVEMENT_LABELS[x.m.reason] ?? x.m.reason, money(x.m.unitCostMinor), money(x.m.unitCostMinor === null ? null : x.m.unitCostMinor * x.m.quantity), x.m.refType ? `${x.m.refType}:${x.m.refId}` : "", x.m.note, x.actorName]);
       break;
     }
     case "purchase-orders": {

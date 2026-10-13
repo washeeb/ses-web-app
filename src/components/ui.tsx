@@ -54,6 +54,7 @@ const STATUS_TONE: Record<string, Tone> = {
   in_stock: "green", low_stock: "amber", out_of_stock: "red", unconfirmed: "amber", not_tracked: "gray",
   not_started: "gray", requested: "blue", shipped: "purple", delivered: "green",
   simulator: "purple", production: "teal",
+  in_transit: "purple", sold: "gray", written_off: "red", returned_to_supplier: "gray",
   partially_received: "amber", initialized: "blue", success: "green", amount_mismatch: "red", abandoned: "gray",
   issued: "blue", part_paid: "amber", paid: "green", unpaid: "amber", void: "gray", reversed: "gray", overdue: "red",
   ended: "gray", lapsed: "red", scheduled: "blue", open: "blue", pending_customer: "amber", resolved: "green", closed: "gray",

@@ -50,6 +50,13 @@
       "when": 1791902898562,
       "tag": "0006_catalogue_media",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791909086965,
+      "tag": "0007_inventory",
+      "breakpoints": true
     }
   ]
 }

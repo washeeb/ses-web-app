@@ -11,6 +11,7 @@ import {
   returnRequests,
   stockLevels,
   stockLocations,
+  stockSerials,
   users,
   warranties,
 } from "../db/schema";
@@ -40,12 +41,14 @@ export async function createWarrantiesForOrder(tx: DB, orderId: string, fulfille
   for (const r of rows) {
     const endsAt = new Date(fulfilledAt);
     endsAt.setUTCMonth(endsAt.getUTCMonth() + r.months);
+    const sold = await tx.select({ serial: stockSerials.serial }).from(stockSerials).where(and(eq(stockSerials.orderId, orderId), eq(stockSerials.variantId, r.line.variantId!), eq(stockSerials.status, "sold")));
     await tx.insert(warranties).values({
       orderId,
       orderLineId: r.line.id,
       customerOrgId: r.customerOrgId,
       variantId: r.line.variantId!,
       quantity: r.line.quantity,
+      serials: sold.map((s) => s.serial),
       startsAt: fulfilledAt,
       endsAt,
     });

@@ -153,3 +153,21 @@ main dd a:not(.btn) {
 .table tr:hover td {
   background: #fafcff;
 }
+
+/* Label sheets: A4, 3 × 7 labels of 63.5 × 38.1 mm (Avery L7160 layout). */
+@media print {
+  @page labels {
+    size: A4;
+    margin: 15.15mm 7.25mm;
+  }
+  .label-sheet {
+    page: labels;
+    display: grid;
+    grid-template-columns: repeat(3, 63.5mm);
+    grid-auto-rows: 38.1mm;
+    column-gap: 2.5mm;
+  }
+  .label-sheet .label {
+    break-inside: avoid;
+  }
+}

@@ -122,3 +122,38 @@ test.describe("procurement officer", () => {
     await expectAccessible(page, "product page");
   });
 });
+
+test.describe("warehouse officer", () => {
+  test.use({ storageState: STATE.warehouse });
+  test("receives stock by scanning, then counts it in a stocktake", async ({ page }) => {
+    await page.goto("/ops/inventory/receive");
+    const receive = page.locator("section", { has: page.getByRole("heading", { name: "Receive a delivery" }) });
+    await receive.getByLabel("Item (scan or type)").fill("SES-LAP14-I5-16");
+    await receive.getByLabel("Quantity").fill("2");
+    await receive.getByLabel("Unit cost (GHS)").fill("9000.00");
+    await receive.getByRole("button", { name: "Receive" }).click();
+    await expect(receive.getByRole("status")).toContainText("Stock received.");
+    await page.goto("/ops/inventory/counts");
+    await page.getByRole("button", { name: "Start" }).click();
+    const started = await Promise.race([
+      page.waitForURL(/\/ops\/inventory\/counts\/[0-9a-f-]{36}$/).then(() => true),
+      page.getByRole("alert").filter({ hasText: /still open/ }).waitFor().then(() => false),
+    ]);
+    if (!started) {
+      await page.getByRole("row").filter({ hasText: "open" }).getByRole("link").first().click();
+      await page.waitForURL(/\/ops\/inventory\/counts\/[0-9a-f-]{36}$/);
+    }
+    const scan = page.getByLabel(/Scan each unit/);
+    await scan.fill("SES-SRV1U-STD");
+    await scan.press("Enter");
+    await expect(page.getByRole("status").filter({ hasText: /1 counted/ })).toBeVisible();
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Finish and post differences" }).click();
+    await expect(page.getByText("completed", { exact: true })).toBeVisible();
+  });
+
+  test("prints barcode labels", async ({ page }) => {
+    await page.goto("/ops/inventory/labels?code_0=SES-LAP14-I5-16&qty_0=3");
+    await expect(page.getByRole("img", { name: "Barcode SES-LAP14-I5-16" })).toHaveCount(3);
+  });
+});

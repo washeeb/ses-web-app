@@ -212,7 +212,7 @@ export async function seed(db: DB, opts: SeedOptions) {
   const cat = (slug: string) => catRows.find((c) => c.slug === slug)!.id;
 
   let [warehouse] = await db.select().from(stockLocations).where(eq(stockLocations.code, "ACC-MAIN"));
-  if (!warehouse) [warehouse] = await db.insert(stockLocations).values({ code: "ACC-MAIN", name: "Accra main warehouse", organizationId: ses.id }).returning();
+  if (!warehouse) [warehouse] = await db.insert(stockLocations).values({ code: "ACC-MAIN", name: "Accra main warehouse", kind: "warehouse", isDefault: true, organizationId: ses.id }).returning();
 
   type V = { sku: string; name: string; price: number; tracks?: boolean; period?: "month" | "year"; stock?: number };
   const catalogue: { slug: string; name: string; summary: string; type: "hardware" | "software_licence" | "subscription" | "service_package"; cat: string; variants: V[] }[] = [
