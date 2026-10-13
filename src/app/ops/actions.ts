@@ -200,7 +200,7 @@ export async function createConnectionAction(_: Prev, fd: FormData) {
       markupBp: percentToBp(str(fd, "markupPercent")),
     });
     revalidatePath("/ops/integrations");
-    return { message: `Connection created. Give the partner the inbound signing secret below over a secure channel.`, secret: `Inbound (partner signs with this): ${r.inboundSecret}\nOutbound (SES signs with this): ${r.outboundSecret}` };
+    return { message: `Connection created. Give the partner the inbound signing secret below over a secure channel.`, secret: `Connection ID: ${r.connection.id}\nInbound (partner signs with this): ${r.inboundSecret}\nOutbound (SES signs with this): ${r.outboundSecret}` };
   });
 }
 
@@ -208,7 +208,7 @@ export async function rotateSecretsAction(_: Prev, fd: FormData) {
   const actor = await ops();
   return run(async () => {
     const r = await rotateSecrets(getDb(), actor, str(fd, "id"));
-    return { message: "Secrets rotated. The old secrets stop working immediately.", secret: `Inbound: ${r.inboundSecret}\nOutbound: ${r.outboundSecret}` };
+    return { message: "Secrets rotated. The old secrets stop working immediately.", secret: `Connection ID: ${str(fd, "id")}\nInbound (partner signs with this): ${r.inboundSecret}\nOutbound (SES signs with this): ${r.outboundSecret}` };
   });
 }
 
