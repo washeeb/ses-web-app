@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { deflateSync } from "node:zlib";
 import { currentStep, totpAt } from "../src/server/auth/totp";
 
 export const PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "";
@@ -50,4 +51,41 @@ export async function signInWithMfa(page: Page, email: string) {
   await page.getByLabel("Authentication code").fill(totpAt(secret, currentStep()));
   await page.getByRole("button", { name: /Turn on two-step verification|Verify/ }).click();
   await page.waitForURL((u) => !u.pathname.startsWith("/account/mfa") && !u.pathname.startsWith("/login"));
+}
+
+/** A real PNG (solid colour gradient) for upload tests, built without image libraries. */
+export function makePng(width: number, height: number) {
+  const table = Array.from({ length: 256 }, (_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (buf: Buffer) => {
+    let c = 0xffffffff;
+    for (const b of buf) c = table[(c ^ b) & 0xff]! ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type: string, data: Buffer) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, "latin1"), data]);
+    const sum = Buffer.alloc(4);
+    sum.writeUInt32BE(crc(body));
+    return Buffer.concat([len, body, sum]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // RGB
+  const raw = Buffer.alloc((width * 3 + 1) * height);
+  for (let y = 0; y < height; y++) {
+    const row = y * (width * 3 + 1);
+    for (let x = 0; x < width; x++) {
+      raw[row + 1 + x * 3] = 176;
+      raw[row + 2 + x * 3] = Math.round((x / width) * 255);
+      raw[row + 3 + x * 3] = Math.round((y / height) * 255);
+    }
+  }
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk("IHDR", ihdr), chunk("IDAT", deflateSync(raw)), chunk("IEND", Buffer.alloc(0))]);
 }

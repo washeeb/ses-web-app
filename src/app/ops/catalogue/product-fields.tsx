@@ -7,10 +7,26 @@ interface Defaults {
   description?: string | null;
   type?: string;
   categoryId?: string | null;
+  brandId?: string | null;
+  specs?: { name: string; value: string }[];
   status?: string;
 }
 
-export function ProductFields({ categories, d = {} }: { categories: { id: string; name: string }[]; d?: Defaults }) {
+export function ProductFields({
+  categories,
+  brands,
+  tagNames,
+  tags = [],
+  d = {},
+}: {
+  categories: { id: string; name: string; depth: number; active: boolean }[];
+  brands: { id: string; name: string; active: boolean }[];
+  /** All existing tag names, offered as suggestions. */
+  tagNames: string[];
+  /** This product's tags. */
+  tags?: string[];
+  d?: Defaults;
+}) {
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -28,8 +44,14 @@ export function ProductFields({ categories, d = {} }: { categories: { id: string
           <select id="categoryId" name="categoryId" className="field" defaultValue={d.categoryId ?? ""}>
             <option value="">None</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>{c.depth ? "\u00a0\u00a0— " : ""}{c.name}{c.active ? "" : " (hidden)"}</option>
             ))}
+          </select>
+        </Field>
+        <Field label="Brand" htmlFor="brandId">
+          <select id="brandId" name="brandId" className="field" defaultValue={d.brandId ?? ""}>
+            <option value="">None</option>
+            {brands.map((b) => <option key={b.id} value={b.id}>{b.name}{b.active ? "" : " (hidden)"}</option>)}
           </select>
         </Field>
         <Field label="Status" htmlFor="status" hint="Only active products appear in the public store.">
@@ -46,6 +68,13 @@ export function ProductFields({ categories, d = {} }: { categories: { id: string
       <Field label="Description" htmlFor="description">
         <textarea id="description" name="description" rows={4} className="field" maxLength={5000} defaultValue={d.description ?? ""} />
       </Field>
+      <Field label="Tags" htmlFor="tagsText" hint="Separate with commas. New tags are created automatically.">
+        <input id="tagsText" name="tagsText" className="field" maxLength={1000} defaultValue={tags.join(", ")} list="tag-suggestions" autoComplete="off" />
+      </Field>
+      <datalist id="tag-suggestions">{tagNames.map((t) => <option key={t} value={t} />)}</datalist>
+      <Field label="Specifications" htmlFor="specsText" hint={'One per line, as "Name: value" — e.g. "Licence term: 12 months". Shown as a table in the store.'}>
+        <textarea id="specsText" name="specsText" rows={4} className="field font-mono text-sm" maxLength={10000} defaultValue={(d.specs ?? []).map((s) => `${s.name}: ${s.value}`).join("\n")} />
+      </Field>
     </>
   );
 }
@@ -53,8 +82,8 @@ export function ProductFields({ categories, d = {} }: { categories: { id: string
 export function VariantFields() {
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      <Field label="SKU" htmlFor="sku">
-        <input id="sku" name="sku" className="field uppercase" required pattern="[A-Za-z0-9][A-Za-z0-9\-]{2,40}" />
+      <Field label="SKU" htmlFor="sku" hint="Leave empty to assign one automatically.">
+        <input id="sku" name="sku" className="field uppercase" pattern="[A-Za-z0-9][A-Za-z0-9\-]{2,40}" placeholder="SE-NET-00001" />
       </Field>
       <Field label="Option name" htmlFor="variantName">
         <input id="variantName" name="variantName" className="field" required defaultValue="Standard" />

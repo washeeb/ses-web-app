@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { getDb } from "@/server/db/client";
 import { requireActor } from "@/server/web/session";
-import { getProductAdmin, listCategories } from "@/server/modules/catalogue";
+import { getProductAdmin } from "@/server/modules/catalogue";
+import { listBrands, listCategoriesTree, listTags } from "@/server/modules/taxonomy";
+import { ImageManager } from "@/components/image-manager";
 import { listLocations, listMovements } from "@/server/modules/inventory";
 import { can } from "@/server/authz/policy";
 import { AppError } from "@/server/lib/errors";
@@ -9,7 +11,7 @@ import { ActionForm } from "@/components/action-form";
 import { AvailabilityBadge } from "@/components/availability";
 import { Ago, Badge, Card, Field, Money, PageHeader, StatusBadge, TableWrap } from "@/components/ui";
 import { LiveRefresh } from "@/components/live-refresh";
-import { addVariantAction, adjustStockAction, priceChangeAction, updateProductAction } from "../../actions";
+import { addVariantAction, adjustStockAction, imageAction, priceChangeAction, updateProductAction, uploadImageAction } from "../../actions";
 import { ProductFields, VariantFields } from "../product-fields";
 
 export default async function ProductAdminPage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,9 +22,9 @@ export default async function ProductAdminPage({ params }: { params: Promise<{ i
     if (e instanceof AppError) notFound();
     throw e;
   });
-  const [categories, locations] = await Promise.all([listCategories(db), listLocations(db)]);
+  const [categories, brands, allTags, locations] = await Promise.all([listCategoriesTree(db), listBrands(db), listTags(db), listLocations(db)]);
   const sesLocations = locations.filter((l) => !l.connectionId);
-  const { product: p, variants } = data;
+  const { product: p, variants, images, tags: productTagList } = data;
   const movements = can(actor, "inventory.read")
     ? Object.fromEntries(await Promise.all(variants.filter((v) => v.tracksStock).map(async (v) => [v.id, await listMovements(db, actor, v.id, 10)] as const)))
     : {};
@@ -46,11 +48,14 @@ export default async function ProductAdminPage({ params }: { params: Promise<{ i
           {canWrite ? (
             <ActionForm action={updateProductAction} submitLabel="Save">
               <input type="hidden" name="id" value={p.id} />
-              <ProductFields categories={categories} d={p} />
+              <ProductFields categories={categories} brands={brands} tagNames={allTags.map((t) => t.name)} tags={productTagList.map((t) => t.name)} d={p} />
             </ActionForm>
           ) : (
             <p className="text-sm text-slate-700">{p.description}</p>
           )}
+        </Card>
+        <Card title="Pictures" className="xl:order-first xl:col-span-2">
+          <ImageManager images={images} ownerType="product" ownerId={p.id} defaultAlt={p.name} canWrite={canWrite} uploadAction={uploadImageAction} imageAction={imageAction} />
         </Card>
         <div className="min-w-0 space-y-6">
           {variants.map((v) => (

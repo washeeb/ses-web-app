@@ -224,8 +224,63 @@ export const categories = pgTable("categories", {
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
   description: text("description"),
+  /** Optional parent for sub-categories (one level deep keeps the store menu simple). */
+  parentId: uuid("parent_id"),
+  /** Three-letter code used in automatic SKUs (SE-<code>-00001); defaults from the slug. */
+  skuCode: text("sku_code"),
+  /** Hidden categories stay on their products but are not offered in the store. */
+  active: boolean("active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
 });
+
+/** Manufacturers and vendors (Microsoft, Cisco, Fortinet …). */
+export const brands = pgTable("brands", {
+  id: id(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  website: text("website"),
+  active: boolean("active").notNull().default(true),
+  createdAt: createdAt(),
+});
+
+/** Free labels for grouping and search. */
+export const tags = pgTable("tags", {
+  id: id(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  createdAt: createdAt(),
+});
+
+/**
+ * Images for products, categories, brands and service areas. Files are resized and converted in the browser,
+ * checked by content on the server and stored outside the app folder as <id>/<width>.<ext>.
+ */
+export const media = pgTable(
+  "media",
+  {
+    id: id(),
+    /** product | category | brand | service */
+    ownerType: text("owner_type").notNull(),
+    /** Row id, or the service-area slug. */
+    ownerId: text("owner_id").notNull(),
+    /** Widths stored, ascending (e.g. 320, 800, 1600). */
+    widths: integer("widths").array().notNull(),
+    /** webp | jpg | png */
+    ext: text("ext").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    bytes: integer("bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    alt: text("alt").notNull().default(""),
+    /** 0 = main image. */
+    sortOrder: integer("sort_order").notNull().default(0),
+    uploadedBy: uuid("uploaded_by").references(() => users.id),
+    deletedAt: ts("deleted_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.ownerType, t.ownerId)],
+);
 
 export const products = pgTable("products", {
   id: id(),
@@ -235,6 +290,9 @@ export const products = pgTable("products", {
   description: text("description"),
   type: productType("type").notNull(),
   categoryId: uuid("category_id").references(() => categories.id),
+  brandId: uuid("brand_id").references(() => brands.id),
+  /** Specification sheet shown on the product page: [{ name: "Licence term", value: "12 months" }, …]. */
+  specs: jsonb("specs").$type<{ name: string; value: string }[]>().notNull().default([]),
   /** draft products are never shown publicly */
   status: text("status").notNull().default("draft"),
   sourceConnectionId: uuid("source_connection_id"),
@@ -242,6 +300,15 @@ export const products = pgTable("products", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+export const productTags = pgTable(
+  "product_tags",
+  {
+    productId: uuid("product_id").notNull().references(() => products.id),
+    tagId: uuid("tag_id").notNull().references(() => tags.id),
+  },
+  (t) => [primaryKey({ columns: [t.productId, t.tagId] }), index().on(t.tagId)],
+);
 
 export const productVariants = pgTable(
   "product_variants",

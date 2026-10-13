@@ -1,10 +1,13 @@
-import { and, asc, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { DB } from "../db/client";
-import { approvalRequests, categories, productMappings, products, productVariants } from "../db/schema";
+import { approvalRequests, brands, categories, productMappings, products, productTags, productVariants, sequences, tags } from "../db/schema";
 import { authorize, type Actor } from "../authz/policy";
 import { conflict, invalid, notFound } from "../lib/errors";
+import { slugify } from "../lib/slug";
 import { audit } from "./audit";
+import { listMedia, mainImages } from "./media";
+import { categoryAndChildren, parseSpecs, setProductTags, tagsForProducts } from "./taxonomy";
 import { publish } from "./events";
 import { computeAvailability, levelsForVariants, type Availability } from "./inventory";
 import { getSettings, operatorOrgId } from "./settings";
@@ -18,6 +21,27 @@ export const PRODUCT_TYPE_LABEL: Record<ProductType, string> = {
   subscription: "Subscription",
   service_package: "Service package",
 };
+
+/**
+ * Assigns the next SKU, e.g. SE-NET-00012: the category's SKU code (or the first letters of its slug, GEN without a
+ * category) and one counter for all categories, so a number is never reused. Runs inside the caller's transaction;
+ * SKUs never change once assigned. Partner-supplied items keep the partner's SKU.
+ */
+export async function nextSku(db: DB, categoryId: string | null | undefined) {
+  const [cat] = categoryId ? await db.select({ slug: categories.slug, skuCode: categories.skuCode }).from(categories).where(eq(categories.id, categoryId)) : [];
+  const code = cat?.skuCode || (cat ? cat.slug.replace(/[^a-z]/gi, "").slice(0, 3).toUpperCase().padEnd(3, "X") : "GEN");
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const [row] = await db
+      .insert(sequences)
+      .values({ key: "SKU", value: 1 })
+      .onConflictDoUpdate({ target: sequences.key, set: { value: sql`${sequences.value} + 1` } })
+      .returning();
+    const sku = `SE-${code}-${String(row!.value).padStart(5, "0")}`;
+    const [clash] = await db.select({ id: productVariants.id }).from(productVariants).where(eq(productVariants.sku, sku));
+    if (!clash) return sku;
+  }
+  throw conflict("Could not assign a free SKU. Try again.");
+}
 
 export async function listCategories(db: DB) {
   return db.select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.name));
@@ -60,39 +84,57 @@ async function attachVariants(db: DB, productIds: string[], now = new Date()) {
   return map;
 }
 
-/** Public catalogue: active products only. */
-export async function listStoreProducts(db: DB, filter: { type?: string; q?: string; category?: string } = {}) {
+export type StoreSort = "name" | "price-asc" | "price-desc" | "newest";
+
+/** Public catalogue: active products, filtered by type, search, category (with its sub-categories), brand or tag. */
+export async function listStoreProducts(db: DB, filter: { type?: string; q?: string; category?: string; brand?: string; tag?: string; sort?: StoreSort } = {}) {
   const conds = [eq(products.status, "active")];
   if (filter.type && (PRODUCT_TYPES as readonly string[]).includes(filter.type)) conds.push(eq(products.type, filter.type as ProductType));
   if (filter.q) {
     const q = `%${filter.q.replace(/[%_\\]/g, "\\$&").slice(0, 80)}%`;
-    conds.push(or(ilike(products.name, q), ilike(products.summary, q))!);
+    // Matches names, summaries, SKUs and brand names.
+    const skuHits = db.select({ id: productVariants.productId }).from(productVariants).where(ilike(productVariants.sku, q));
+    conds.push(or(ilike(products.name, q), ilike(products.summary, q), ilike(brands.name, q), inArray(products.id, skuHits))!);
   }
   if (filter.category) {
     const [cat] = await db.select().from(categories).where(eq(categories.slug, filter.category));
-    if (cat) conds.push(eq(products.categoryId, cat.id));
+    conds.push(cat ? inArray(products.categoryId, await categoryAndChildren(db, cat.id)) : sql`false`);
+  }
+  if (filter.brand) {
+    const [b] = await db.select().from(brands).where(eq(brands.slug, filter.brand));
+    conds.push(b ? eq(products.brandId, b.id) : sql`false`);
+  }
+  if (filter.tag) {
+    const tagged = db.select({ id: productTags.productId }).from(productTags).innerJoin(tags, eq(tags.id, productTags.tagId)).where(eq(tags.slug, filter.tag));
+    conds.push(inArray(products.id, tagged));
   }
   const rows = await db
-    .select({ product: products, categoryName: categories.name })
+    .select({ product: products, categoryName: categories.name, categorySlug: categories.slug, brandName: brands.name, brandSlug: brands.slug })
     .from(products)
     .leftJoin(categories, eq(categories.id, products.categoryId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(and(...conds))
-    .orderBy(asc(products.name));
-  const variants = await attachVariants(db, rows.map((r) => r.product.id));
-  return rows
-    .map((r) => ({ ...r.product, categoryName: r.categoryName, variants: variants.get(r.product.id) ?? [] }))
+    .orderBy(filter.sort === "newest" ? desc(products.createdAt) : asc(products.name));
+  const ids = rows.map((r) => r.product.id);
+  const [variants, images] = await Promise.all([attachVariants(db, ids), mainImages(db, "product", ids)]);
+  const list = rows
+    .map((r) => ({ ...r.product, categoryName: r.categoryName, categorySlug: r.categorySlug, brandName: r.brandName, brandSlug: r.brandSlug, image: images.get(r.product.id) ?? null, variants: variants.get(r.product.id) ?? [] }))
     .filter((p) => p.variants.length > 0);
+  if (filter.sort === "price-asc") list.sort((a, b) => a.variants[0]!.priceMinor - b.variants[0]!.priceMinor);
+  if (filter.sort === "price-desc") list.sort((a, b) => b.variants[0]!.priceMinor - a.variants[0]!.priceMinor);
+  return list;
 }
 
 export async function getStoreProduct(db: DB, slug: string) {
   const [row] = await db
-    .select({ product: products, categoryName: categories.name })
+    .select({ product: products, categoryName: categories.name, categorySlug: categories.slug, brandName: brands.name, brandSlug: brands.slug })
     .from(products)
     .leftJoin(categories, eq(categories.id, products.categoryId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .where(and(eq(products.slug, slug), eq(products.status, "active")));
   if (!row) return null;
-  const variants = await attachVariants(db, [row.product.id]);
-  return { ...row.product, categoryName: row.categoryName, variants: variants.get(row.product.id) ?? [] };
+  const [variants, images, tagMap] = await Promise.all([attachVariants(db, [row.product.id]), listMedia(db, "product", [row.product.id]), tagsForProducts(db, [row.product.id])]);
+  return { ...row.product, categoryName: row.categoryName, categorySlug: row.categorySlug, brandName: row.brandName, brandSlug: row.brandSlug, images, tags: tagMap.get(row.product.id) ?? [], variants: variants.get(row.product.id) ?? [] };
 }
 
 // ───────────────────────────── Management ─────────────────────────────
@@ -100,12 +142,14 @@ export async function getStoreProduct(db: DB, slug: string) {
 export async function listProductsAdmin(db: DB, actor: Actor) {
   authorize(actor, "catalogue.read");
   const rows = await db
-    .select({ product: products, categoryName: categories.name })
+    .select({ product: products, categoryName: categories.name, brandName: brands.name })
     .from(products)
     .leftJoin(categories, eq(categories.id, products.categoryId))
+    .leftJoin(brands, eq(brands.id, products.brandId))
     .orderBy(desc(products.updatedAt));
-  const variants = await attachVariants(db, rows.map((r) => r.product.id));
-  return rows.map((r) => ({ ...r.product, categoryName: r.categoryName, variants: variants.get(r.product.id) ?? [] }));
+  const ids = rows.map((r) => r.product.id);
+  const [variants, images] = await Promise.all([attachVariants(db, ids), mainImages(db, "product", ids)]);
+  return rows.map((r) => ({ ...r.product, categoryName: r.categoryName, brandName: r.brandName, image: images.get(r.product.id) ?? null, variants: variants.get(r.product.id) ?? [] }));
 }
 
 export async function getProductAdmin(db: DB, actor: Actor, id: string) {
@@ -114,7 +158,7 @@ export async function getProductAdmin(db: DB, actor: Actor, id: string) {
   if (!product) throw notFound("Product not found.");
   const variants = await db.select().from(productVariants).where(eq(productVariants.productId, id)).orderBy(asc(productVariants.sku));
   const variantIds = variants.map((v) => v.id);
-  const levels = await levelsForVariants(db, variantIds);
+  const [levels, images, tagMap] = await Promise.all([levelsForVariants(db, variantIds), listMedia(db, "product", [id]), tagsForProducts(db, [id])]);
   const mappings = variantIds.length
     ? await db.select().from(productMappings).where(inArray(productMappings.variantId, variantIds))
     : [];
@@ -126,6 +170,8 @@ export async function getProductAdmin(db: DB, actor: Actor, id: string) {
     : [];
   return {
     product,
+    images,
+    tags: tagMap.get(id) ?? [],
     variants: variants.map((v) => ({
       ...v,
       levels: levels.filter((l) => l.variantId === v.id),
@@ -137,13 +183,6 @@ export async function getProductAdmin(db: DB, actor: Actor, id: string) {
 }
 
 const RESERVED_SLUGS = new Set(["cart", "checkout"]);
-const slugify = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 80);
 
 export const productInput = z.object({
   name: z.string().trim().min(3).max(160),
@@ -151,11 +190,26 @@ export const productInput = z.object({
   description: z.string().trim().max(5000).optional().default(""),
   type: z.enum(PRODUCT_TYPES),
   categoryId: z.string().uuid().nullable().optional(),
+  brandId: z.string().uuid().nullable().optional(),
+  /** One "Name: value" per line. */
+  specsText: z.string().max(10_000).optional().default(""),
+  /** Comma-separated tag names; new tags are created. */
+  tagsText: z.string().max(1000).optional().default(""),
   status: z.enum(["draft", "active", "retired"]).default("draft"),
 });
 
+async function productValues(tx: DB, p: z.output<typeof productInput>) {
+  if (p.brandId) {
+    const [b] = await tx.select({ id: brands.id }).from(brands).where(eq(brands.id, p.brandId));
+    if (!b) throw notFound("Unknown brand.");
+  }
+  const { specsText, tagsText: _tags, ...rest } = p;
+  return { ...rest, categoryId: p.categoryId ?? null, brandId: p.brandId ?? null, specs: parseSpecs(specsText) };
+}
+
 export const variantInput = z.object({
-  sku: z.string().trim().toUpperCase().regex(/^[A-Z0-9][A-Z0-9-]{2,40}$/, "SKU: 3–41 letters, digits or dashes."),
+  /** Leave empty to have the next SKU assigned (see nextSku). */
+  sku: z.union([z.literal(""), z.string().trim().toUpperCase().regex(/^[A-Z0-9][A-Z0-9-]{2,40}$/, "SKU: 3–41 letters, digits or dashes.")]).optional(),
   name: z.string().trim().min(1).max(120),
   priceMinor: z.number().int().min(0).max(100_000_000_000),
   currency: z.string().length(3).default("GHS"),
@@ -174,11 +228,13 @@ export async function createProduct(db: DB, actor: Actor, input: z.input<typeof 
     const [clash] = await tx.select({ id: products.id }).from(products).where(eq(products.slug, slug));
     // "cart" is the store's own page (/store/cart), so a product may not take that address.
     if (clash || RESERVED_SLUGS.has(slug)) slug = `${slug}-${Date.now().toString(36)}`;
-    const [skuClash] = await tx.select({ id: productVariants.id }).from(productVariants).where(eq(productVariants.sku, v.sku));
-    if (skuClash) throw conflict(`SKU ${v.sku} is already in use.`);
-    const [product] = await tx.insert(products).values({ ...p, slug, categoryId: p.categoryId ?? null }).returning();
-    const [variant] = await tx.insert(productVariants).values({ ...v, productId: product!.id, billingPeriod: v.billingPeriod ?? null }).returning();
-    await audit(tx, { actor, action: "product.created", targetType: "product", targetId: product!.id, data: { ...p, sku: v.sku, priceMinor: v.priceMinor } });
+    const sku = v.sku || (await nextSku(tx, p.categoryId));
+    const [skuClash] = await tx.select({ id: productVariants.id }).from(productVariants).where(eq(productVariants.sku, sku));
+    if (skuClash) throw conflict(`SKU ${sku} is already in use.`);
+    const [product] = await tx.insert(products).values({ ...(await productValues(tx, p)), slug }).returning();
+    await setProductTags(tx, product!.id, p.tagsText);
+    const [variant] = await tx.insert(productVariants).values({ ...v, sku, productId: product!.id, billingPeriod: v.billingPeriod ?? null }).returning();
+    await audit(tx, { actor, action: "product.created", targetType: "product", targetId: product!.id, data: { ...p, sku, priceMinor: v.priceMinor } });
     return { product: product!, variant: variant! };
   }).finally(() => publish({ topic: "catalogue" }));
 }
@@ -189,7 +245,8 @@ export async function updateProduct(db: DB, actor: Actor, id: string, input: z.i
   await db.transaction(async (tx) => {
     const [before] = await tx.select().from(products).where(eq(products.id, id));
     if (!before) throw notFound("Product not found.");
-    await tx.update(products).set({ ...p, categoryId: p.categoryId ?? null }).where(eq(products.id, id));
+    await tx.update(products).set(await productValues(tx, p)).where(eq(products.id, id));
+    await setProductTags(tx, id, p.tagsText);
     await audit(tx, { actor, action: "product.updated", targetType: "product", targetId: id, data: { before, after: p } });
   });
   publish({ topic: "catalogue" });
@@ -198,14 +255,18 @@ export async function updateProduct(db: DB, actor: Actor, id: string, input: z.i
 export async function addVariant(db: DB, actor: Actor, productId: string, input: z.input<typeof variantInput>) {
   authorize(actor, "catalogue.write");
   const v = variantInput.parse(input);
-  const [product] = await db.select().from(products).where(eq(products.id, productId));
-  if (!product) throw notFound("Product not found.");
-  const [skuClash] = await db.select({ id: productVariants.id }).from(productVariants).where(eq(productVariants.sku, v.sku));
-  if (skuClash) throw conflict(`SKU ${v.sku} is already in use.`);
-  const [row] = await db.insert(productVariants).values({ ...v, productId, billingPeriod: v.billingPeriod ?? null }).returning();
-  await audit(db, { actor, action: "variant.created", targetType: "variant", targetId: row!.id, data: v });
+  const row = await db.transaction(async (tx) => {
+    const [product] = await tx.select().from(products).where(eq(products.id, productId));
+    if (!product) throw notFound("Product not found.");
+    const sku = v.sku || (await nextSku(tx, product.categoryId));
+    const [skuClash] = await tx.select({ id: productVariants.id }).from(productVariants).where(eq(productVariants.sku, sku));
+    if (skuClash) throw conflict(`SKU ${sku} is already in use.`);
+    const [created] = await tx.insert(productVariants).values({ ...v, sku, productId, billingPeriod: v.billingPeriod ?? null }).returning();
+    await audit(tx, { actor, action: "variant.created", targetType: "variant", targetId: created!.id, data: { ...v, sku } });
+    return created!;
+  });
   publish({ topic: "catalogue" });
-  return row!;
+  return row;
 }
 
 /** Applies a price inside the caller's transaction (used by approvals and partner feeds). */

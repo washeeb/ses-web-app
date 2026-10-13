@@ -34,7 +34,11 @@ const NAV: { label: string | null; items: Entry[] }[] = [
   {
     label: "Catalogue & inventory",
     items: [
-      { href: "/ops/catalogue", label: "Catalogue & stock", perm: "catalogue.read" },
+      { href: "/ops/catalogue", label: "Products & stock", perm: "catalogue.read" },
+      { href: "/ops/catalogue/categories", label: "Categories", perm: "catalogue.read" },
+      { href: "/ops/catalogue/brands", label: "Brands", perm: "catalogue.read" },
+      { href: "/ops/catalogue/tags", label: "Tags", perm: "catalogue.read" },
+      { href: "/ops/catalogue/services", label: "Service pictures", perm: "catalogue.read" },
       { href: "/ops/procurement", label: "Procurement", perm: "procurement.read" },
     ],
   },

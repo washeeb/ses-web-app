@@ -29,6 +29,17 @@ test.describe("staff pages (sales officer)", () => {
   }
 });
 
+test.describe("catalogue pages (procurement officer)", () => {
+  test.use({ storageState: STATE.procurement });
+  for (const path of ["/ops/catalogue/new", "/ops/catalogue/categories", "/ops/catalogue/brands", "/ops/catalogue/tags", "/ops/catalogue/services", "/ops/catalogue/services/infrastructure"]) {
+    test(`${path} is accessible`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.locator("main h1")).toBeVisible();
+      await expectAccessible(page, path);
+    });
+  }
+});
+
 test.describe("customer pages", () => {
   test.use({ storageState: STATE.customer });
   for (const path of ["/portal", "/portal/invoices", "/portal/support", "/portal/support/new", "/portal/subscriptions", "/portal/projects", "/portal/assets", "/portal/returns", "/portal/notifications"]) {

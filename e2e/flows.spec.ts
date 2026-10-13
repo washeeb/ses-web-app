@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { expectAccessible, signIn, signInWithMfa } from "./helpers";
+import { expectAccessible, makePng, signIn, signInWithMfa } from "./helpers";
 import { STATE } from "./auth.setup";
 
 test("visitor can send an enquiry and gets a reference", async ({ page }) => {
@@ -98,5 +98,27 @@ test.describe("customer user", () => {
     await expect(page.getByRole("status")).toContainText(/ticket T-\d{4}-\d{5} has been received/);
     await expect(page.getByRole("heading", { level: 1 })).toContainText("E2E: scanner not connecting");
     await expectAccessible(page, "ticket page");
+  });
+});
+
+test.describe("procurement officer", () => {
+  test.use({ storageState: STATE.procurement });
+  test("creates a product with an automatic SKU and adds a picture", async ({ page }) => {
+    await page.goto("/ops/catalogue/new");
+    await page.getByLabel("Name", { exact: true }).fill(`E2E firewall ${Date.now()}`);
+    await page.getByLabel(/^Price/).fill("1500.00");
+    await page.getByRole("button", { name: "Create product" }).click();
+    await page.waitForURL(/\/ops\/catalogue\/[0-9a-f-]{36}$/);
+    await expect(page.getByText(/SE-GEN-\d{5}/).first()).toBeVisible();
+    // The picture is resized and converted in the browser, checked and stored by the server, then served.
+    await page.getByLabel("Pictures").setInputFiles({ name: "firewall.png", mimeType: "image/png", buffer: makePng(1000, 1000) });
+    await page.getByRole("button", { name: "Upload" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "1 image added." })).toBeVisible();
+    const img = page.locator('img[src^="/media/"]').first();
+    await expect(img).toHaveAttribute("srcset", /320w.*800w.*1000w/);
+    const res = await page.request.get((await img.getAttribute("src"))!);
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toBe("image/webp");
+    await expectAccessible(page, "product page");
   });
 });
