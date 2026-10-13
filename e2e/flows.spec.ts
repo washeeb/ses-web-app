@@ -26,7 +26,15 @@ test.describe("sales officer", () => {
   await page.goto("/ops");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Welcome");
   const nav = page.getByRole("navigation", { name: "Operations" });
+  const menu = nav.getByRole("button", { name: /^Menu/ });
+  if (await menu.isVisible()) await menu.click();
+  await expect(nav.getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
   await expect(nav.getByRole("link", { name: "Quotations" })).toBeVisible();
+  await nav.getByRole("link", { name: "Quotations" }).click();
+  await expect(page).toHaveURL(/\/ops\/quotes$/);
+  if (await menu.isVisible()) await menu.click();
+  await expect(nav.getByRole("link", { name: "Quotations" })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current", "page");
   await expect(nav.getByRole("link", { name: "Audit log" })).toHaveCount(0);
   await page.goto("/ops/audit");
   await expect(page.getByText("You can't open this page")).toBeVisible();

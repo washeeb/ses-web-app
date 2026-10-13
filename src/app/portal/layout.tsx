@@ -3,8 +3,8 @@ import { requireActor } from "@/server/web/session";
 import { can } from "@/server/authz/policy";
 import type { Permission } from "@/server/authz/permissions";
 
-const NAV: { href: string; label: string; perm?: Permission }[] = [
-  { href: "/portal", label: "Overview" },
+const NAV: { href: string; label: string; perm?: Permission; exact?: boolean }[] = [
+  { href: "/portal", label: "Overview", exact: true },
   { href: "/portal/invoices", label: "Invoices", perm: "customer.invoices.read" },
   { href: "/portal/support", label: "Support", perm: "customer.tickets.read" },
   { href: "/portal/subscriptions", label: "Subscriptions", perm: "customer.subscriptions.read" },
