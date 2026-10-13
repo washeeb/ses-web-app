@@ -188,8 +188,10 @@ Without Terminal, use the application page's **Run JS script** for `db:migrate` 
 cPanel → **Cron Jobs** → *Every 5 minutes* (`*/5 * * * *`):
 
 ```
-curl -fsS -m 120 -H "Authorization: Bearer <CRON_SECRET>" https://synclyticsenterprisesystems.com/api/cron/tick > /dev/null
+curl -fsS -m 120 -A "Mozilla/5.0 (cron)" -H "Authorization: Bearer $(grep ^CRON_SECRET= $HOME/ses-app/.env.production | cut -d= -f2)" https://synclyticsenterprisesystems.com/api/cron/tick >/dev/null 2>&1
 ```
+
+InMotion's firewall (ModSecurity) answers **406** to requests that identify as `curl`, and to a `POST` with no body, so the line sends a browser user agent and a plain GET. The secret is read from the settings file, so it never appears in the cron list. Add the job in the cPanel screen (piping into `crontab -` from Terminal replaced an existing line once). Test by hand: the same command without `>/dev/null 2>&1`, plus `-o /dev/null -w "%{http_code}\n"` — expect `200`. Set up 2026-10-13 (before that, background work ran only while the app was awake).
 
 ## 9. E-mail deliverability and Paystack
 
