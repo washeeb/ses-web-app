@@ -1,6 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "ses-web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 }
+    { "name": "ses-web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 },
+    { "name": "kvs-web", "runtimeExecutable": "npm", "runtimeArgs": ["--prefix", "E:/Businesses/1.KingsView/KVS-Web-App", "run", "dev", "--", "-p", "3100"], "port": 3100 }
   ]
 }
