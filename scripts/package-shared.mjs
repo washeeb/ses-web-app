@@ -19,12 +19,13 @@ run("npx next build", { NEXT_PUBLIC_LIVE_UPDATES: "poll", NODE_ENV: "production"
 cpSync(path.join(root, ".next", "static"), path.join(out, ".next", "static"), { recursive: true });
 if (existsSync(path.join(root, "public"))) cpSync(path.join(root, "public"), path.join(out, "public"), { recursive: true });
 cpSync(path.join(root, "drizzle"), path.join(out, "drizzle"), { recursive: true });
+cpSync(path.join(root, "assets", "starter-images"), path.join(out, "starter-images"), { recursive: true });
 // Not needed in production (embedded dev database, image optimiser binaries built for this PC).
 for (const p of ["node_modules/@electric-sql", ".next/node_modules/@electric-sql", "node_modules/sharp", "node_modules/@img"]) rmSync(path.join(out, p), { recursive: true, force: true });
 
 // 3. Maintenance commands bundled into single files (migrate, reference seed, first admin).
 await build({
-  entryPoints: { migrate: "scripts/migrate.ts", "seed-reference": "scripts/seed.ts", "create-admin": "scripts/create-admin.ts" },
+  entryPoints: { migrate: "scripts/migrate.ts", "seed-reference": "scripts/seed.ts", "create-admin": "scripts/create-admin.ts", "starter-images": "scripts/starter-images.ts" },
   outdir: path.join(out, "ops"),
   outExtension: { ".js": ".mjs" },
   bundle: true,
@@ -52,6 +53,7 @@ const deployPkg = {
     "db:migrate": "node ops/migrate.mjs",
     "db:seed-reference": "NODE_ENV=production node ops/seed-reference.mjs",
     "admin:create": "node ops/create-admin.mjs",
+    "images:starter": "node ops/starter-images.mjs",
   },
 };
 writeFileSync(path.join(out, "package.json"), JSON.stringify(deployPkg, null, 2));

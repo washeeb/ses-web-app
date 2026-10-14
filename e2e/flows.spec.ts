@@ -121,6 +121,47 @@ test.describe("procurement officer", () => {
     expect(res.headers()["content-type"]).toBe("image/webp");
     await expectAccessible(page, "product page");
   });
+  test("adds a home page slide with a picture, sees it in the slider, then deletes it", async ({ page }) => {
+    const headline = `E2E slide ${Date.now()}`;
+    await page.goto("/ops/catalogue/slides");
+    await page.getByLabel("Headline").fill(headline);
+    await page.getByLabel("Button label").fill("See the store");
+    await page.getByLabel("Button link").fill("//evil.example");
+    await page.getByRole("button", { name: "Create slide" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Use a page on this site" })).toBeVisible();
+    // The form starts again after a refused save.
+    await page.getByLabel("Headline").fill(headline);
+    await page.getByLabel("Button label").fill("See the store");
+    await page.getByLabel("Button link").fill("/store");
+    await page.getByRole("button", { name: "Create slide" }).click();
+    await page.waitForURL(/\/ops\/catalogue\/slides\/[0-9a-f-]{36}$/);
+    await page.getByLabel("Pictures").setInputFiles({ name: "slide.png", mimeType: "image/png", buffer: makePng(1600, 1067) });
+    await page.getByRole("button", { name: "Upload" }).click();
+    await expect(page.locator('img[src^="/media/"]').first()).toBeVisible();
+    const slideUrl = page.url();
+
+    await page.goto("/");
+    const slider = page.getByRole("region", { name: "Highlights" });
+    const next = slider.getByRole("button", { name: "Next slide" });
+    if (await next.isVisible()) {
+      // Other slides exist: stop the rotation, pick ours, then move on from it.
+      await slider.getByRole("button", { name: "Stop the slides" }).click();
+      await slider.getByRole("button", { name: `: ${headline}` }).click();
+      await expect(slider.getByRole("heading", { name: headline })).toBeVisible();
+      await next.click();
+      await expect(slider.getByRole("heading", { name: headline })).toBeHidden();
+    } else {
+      await expect(slider.getByRole("heading", { name: headline })).toBeVisible();
+    }
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    await expectAccessible(page, "home page slider");
+
+    await page.goto(slideUrl);
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Delete slide" }).click();
+    await page.waitForURL(/\/ops\/catalogue\/slides$/);
+    await expect(page.getByRole("link", { name: headline })).toHaveCount(0);
+  });
 });
 
 test.describe("warehouse officer", () => {

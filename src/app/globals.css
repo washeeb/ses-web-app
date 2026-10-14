@@ -171,3 +171,21 @@ main dd a:not(.btn) {
     break-inside: avoid;
   }
 }
+
+/* Home page slider (dark band): round controls, and a white focus ring that stands out on black. */
+.on-dark :focus-visible {
+  outline-color: #ffffff;
+}
+.slider-btn {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 0.45);
+  color: white;
+  cursor: pointer;
+}
+.slider-btn:hover {
+  background: rgb(255 255 255 / 0.12);
+}

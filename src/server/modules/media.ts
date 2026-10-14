@@ -23,8 +23,8 @@ export const MEDIA_WIDTHS = [320, 800, 1600] as const;
 export const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 export const MAX_IMAGE_SIDE = 4000;
 export const MAX_IMAGES_PER_OWNER = 12;
-export type OwnerType = "product" | "category" | "brand" | "service";
-export const OWNER_TYPES: OwnerType[] = ["product", "category", "brand", "service"];
+export type OwnerType = "product" | "category" | "brand" | "service" | "slide";
+export const OWNER_TYPES: OwnerType[] = ["product", "category", "brand", "service", "slide"];
 type Ext = "webp" | "jpg" | "png";
 export const CONTENT_TYPES: Record<Ext, string> = { webp: "image/webp", jpg: "image/jpeg", png: "image/png" };
 

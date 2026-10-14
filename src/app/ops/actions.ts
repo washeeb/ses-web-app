@@ -13,6 +13,7 @@ import { addVariant, createProduct, requestPriceChange, updateProduct } from "@/
 import { adjustStock, parseSerials } from "@/server/modules/inventory";
 import { addImage, deleteImage, inspectImage, OWNER_TYPES, updateImage, type OwnerType } from "@/server/modules/media";
 import { assertImageOwner, deleteBrand, deleteCategory, deleteTag, renameTag, saveBrand, saveCategory } from "@/server/modules/taxonomy";
+import { deleteSlide, moveSlide, saveSlide } from "@/server/modules/slides";
 import {
   createApiKey,
   createConnection,
@@ -201,6 +202,36 @@ export async function categoryAction(_: Prev, fd: FormData) {
   });
   if (r.ok && str(fd, "op") === "delete") redirect("/ops/catalogue/categories");
   if (r.ok && createdId) redirect(`/ops/catalogue/categories/${createdId}`);
+  return r;
+}
+
+export async function slideAction(_: Prev, fd: FormData) {
+  const actor = await ops();
+  const id = str(fd, "id") || null;
+  const op = str(fd, "op");
+  let createdId = "";
+  const r = await run(async () => {
+    const db = getDb();
+    if (op === "delete") await deleteSlide(db, actor, id!);
+    else if (op === "up" || op === "down") await moveSlide(db, actor, id!, op === "up" ? -1 : 1);
+    else {
+      const row = await saveSlide(db, actor, id, {
+        headline: str(fd, "headline"),
+        body: str(fd, "body"),
+        ctaLabel: str(fd, "ctaLabel"),
+        ctaHref: str(fd, "ctaHref"),
+        active: bool(fd, "active"),
+        sortOrder: str(fd, "sortOrder") || "0",
+        startsOn: str(fd, "startsOn"),
+        endsOn: str(fd, "endsOn"),
+      });
+      createdId = id ? "" : row.id;
+    }
+    revalidatePath("/", "layout");
+    return op === "delete" ? "Slide deleted." : op ? "Order saved." : "Slide saved.";
+  });
+  if (r.ok && op === "delete") redirect("/ops/catalogue/slides");
+  if (r.ok && createdId) redirect(`/ops/catalogue/slides/${createdId}`);
   return r;
 }
 

@@ -48,3 +48,40 @@ export function BrandFields({ b }: { b: Brand | null }) {
     </>
   );
 }
+
+type Slide = { id: string; headline: string; body: string | null; ctaLabel: string | null; ctaHref: string | null; active: boolean; sortOrder: number; startsOn: string | null; endsOn: string | null };
+
+/** Home page slide wording, button and dates. The picture is managed separately. */
+export function SlideFields({ s, nextOrder = 0 }: { s: Slide | null; nextOrder?: number }) {
+  return (
+    <>
+      {s && <input type="hidden" name="id" value={s.id} />}
+      <Field label="Headline" htmlFor="headline" hint="Short and specific: what you offer or what's new.">
+        <input id="headline" name="headline" className="field" required minLength={3} maxLength={120} defaultValue={s?.headline} />
+      </Field>
+      <Field label="Text" htmlFor="body" hint="One or two sentences under the headline.">
+        <textarea id="body" name="body" rows={2} className="field" maxLength={300} defaultValue={s?.body ?? ""} />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Button label" htmlFor="ctaLabel" hint="Leave both empty for no button.">
+          <input id="ctaLabel" name="ctaLabel" className="field" maxLength={40} defaultValue={s?.ctaLabel ?? ""} placeholder="Visit the shop" />
+        </Field>
+        <Field label="Button link" htmlFor="ctaHref" hint="A page here, e.g. /shop, or an https:// address.">
+          <input id="ctaHref" name="ctaHref" className="field" maxLength={300} defaultValue={s?.ctaHref ?? ""} placeholder="/shop" />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="Show from" htmlFor="startsOn" hint="Optional.">
+          <input id="startsOn" name="startsOn" type="date" className="field" defaultValue={s?.startsOn ?? ""} />
+        </Field>
+        <Field label="Show until" htmlFor="endsOn" hint="Optional; includes this day.">
+          <input id="endsOn" name="endsOn" type="date" className="field" defaultValue={s?.endsOn ?? ""} />
+        </Field>
+        <Field label="Order" htmlFor="sortOrder" hint="Lower comes first.">
+          <input id="sortOrder" name="sortOrder" type="number" min={0} max={1000} className="field" defaultValue={s?.sortOrder ?? nextOrder} />
+        </Field>
+      </div>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" defaultChecked={s?.active ?? true} /> Show on the home page</label>
+    </>
+  );
+}

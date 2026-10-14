@@ -1,0 +1,143 @@
+{
+  "services": [
+    {
+      "slug": "enterprise-software",
+      "image": "enterprise-light",
+      "alt": "Illustration of a business system on screen, a phone app and a database"
+    },
+    {
+      "slug": "software-integration",
+      "image": "integration-light",
+      "alt": "Illustration of two code panels connected through APIs"
+    },
+    {
+      "slug": "infrastructure",
+      "image": "infrastructure-light",
+      "alt": "Illustration of server racks, a database and a cloud connection"
+    },
+    {
+      "slug": "telecoms-networks",
+      "image": "telecoms-light",
+      "alt": "Illustration of a telecom mast, a router, cabling and a laptop"
+    },
+    {
+      "slug": "security-continuity",
+      "image": "security-light",
+      "alt": "Illustration of a security shield, a server rack and backups"
+    },
+    {
+      "slug": "hardware-licensing",
+      "image": "hardware-light",
+      "alt": "Illustration of a laptop, a server rack and a software licence"
+    },
+    {
+      "slug": "data-intelligence",
+      "image": "data-light",
+      "alt": "Illustration of a dashboard with charts, a database and a magnifying glass"
+    },
+    {
+      "slug": "readiness-assessments",
+      "image": "assessment-light",
+      "alt": "Illustration of a checklist, a magnifying glass and a server rack"
+    },
+    {
+      "slug": "managed-soc",
+      "image": "soc-light",
+      "alt": "Illustration of monitoring screens with an alert and a security shield"
+    },
+    {
+      "slug": "data-protection",
+      "image": "protection-light",
+      "alt": "Illustration of documents protected by a shield and a padlock"
+    },
+    {
+      "slug": "payments-integration",
+      "image": "payments-light",
+      "alt": "Illustration of a mobile money payment on a phone, a card terminal and a card"
+    },
+    {
+      "slug": "device-as-a-service",
+      "image": "daas-light",
+      "alt": "Illustration of laptops and a phone with a refresh cycle"
+    }
+  ],
+  "categories": [
+    {
+      "slug": "networking",
+      "image": "networkingCat-light",
+      "alt": "Illustration of a router and a network switch"
+    },
+    {
+      "slug": "computing",
+      "image": "computingCat-light",
+      "alt": "Illustration of a laptop and a server rack"
+    },
+    {
+      "slug": "software",
+      "image": "softwareCat-light",
+      "alt": "Illustration of a business application and a software licence"
+    },
+    {
+      "slug": "managed-services",
+      "image": "managedCat-light",
+      "alt": "Illustration of monitoring screens"
+    },
+    {
+      "slug": "professional-services",
+      "image": "professionalCat-light",
+      "alt": "Illustration of a checklist and a laptop"
+    },
+    {
+      "slug": "security",
+      "image": "securityCat-light",
+      "alt": "Illustration of a security shield, a camera and a padlock"
+    }
+  ],
+  "slides": [
+    {
+      "key": "hero",
+      "headline": "Technology that keeps your business connected, secure and running.",
+      "body": "Enterprise software, systems integration, cloud and networks, cybersecurity, hardware and data, delivered as one accountable partner.",
+      "ctaLabel": "Request a consultation",
+      "ctaHref": "/contact",
+      "alt": "Illustration of servers, a laptop dashboard, a security shield and a router",
+      "image": "hero-dark"
+    },
+    {
+      "key": "integration",
+      "headline": "Your systems, finally talking to each other",
+      "body": "Custom software, APIs and systems integration that connect the applications you already run.",
+      "ctaLabel": "Software & integration",
+      "ctaHref": "/services#software-integration",
+      "alt": "Illustration of two code panels connected through APIs",
+      "image": "integration-dark"
+    },
+    {
+      "key": "security",
+      "headline": "Cybersecurity and continuity you can rely on",
+      "body": "Protection, backup and recovery planned around how your business actually works.",
+      "ctaLabel": "Cybersecurity & continuity",
+      "ctaHref": "/services#security-continuity",
+      "alt": "Illustration of a security shield, a server rack and backups",
+      "image": "security-dark"
+    },
+    {
+      "key": "telecoms",
+      "headline": "Networks that reach every office and branch",
+      "body": "Telecommunications and networks delivered with our telecom and ISP partners.",
+      "ctaLabel": "Telecoms & networks",
+      "ctaHref": "/services#telecoms-networks",
+      "alt": "Illustration of a telecom mast, a router, cabling and a laptop",
+      "image": "telecoms-dark"
+    },
+    {
+      "key": "hardware",
+      "headline": "Hardware and licences, supplied and supported",
+      "body": "Equipment and software licences priced in GHS, ordered online or through a quotation.",
+      "ctaLabel": "Browse the store",
+      "ctaHref": "/store",
+      "alt": "Illustration of a laptop, a server rack and a software licence",
+      "image": "hardware-dark"
+    }
+  ]
+}

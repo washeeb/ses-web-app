@@ -282,6 +282,22 @@ export const media = pgTable(
   (t) => [index().on(t.ownerType, t.ownerId)],
 );
 
+/** Home page slider. The picture is a media row (owner type "slide"); dates are inclusive, in Ghana time (GMT). */
+export const slides = pgTable("slides", {
+  id: id(),
+  headline: text("headline").notNull(),
+  body: text("body"),
+  ctaLabel: text("cta_label"),
+  /** A path on this site ("/shop") or an https:// address. */
+  ctaHref: text("cta_href"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  /** YYYY-MM-DD; empty = no limit. */
+  startsOn: text("starts_on"),
+  endsOn: text("ends_on"),
+  createdAt: createdAt(),
+});
+
 export const products = pgTable("products", {
   id: id(),
   slug: text("slug").notNull().unique(),

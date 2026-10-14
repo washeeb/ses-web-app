@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800">
+<defs>
+<radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#d6e2f5" stop-opacity="1"/><stop offset="1" stop-color="#d6e2f5" stop-opacity="0"/></radialGradient>
+<linearGradient id="warm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffdf7" stop-opacity="0.9"/><stop offset="1" stop-color="#ffe2b0" stop-opacity="0.6"/></linearGradient>
+<pattern id="dots" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="2" fill="#dfe6f1"/></pattern>
+</defs>
+<rect x="0" y="0" width="1200" height="800" rx="0" fill="#f3f6fb" />
+<rect x="0" y="0" width="1200" height="800" rx="0" fill="url(#dots)" />
+<circle cx="600" cy="400" r="420" fill="url(#glow)" />
+<ellipse cx="600" cy="650" rx="420" ry="26" fill="rgba(6,44,102,0.10)"/>
+<g transform="translate(300 180) scale(1)"><g transform="translate(0 0) scale(1)"><path d="M120 0 L240 40 V130 C240 210 180 260 120 290 C60 260 0 210 0 130 V40 Z" fill="rgba(0,0,0,0.12)" transform="translate(10 12)"/><path d="M120 0 L240 40 V130 C240 210 180 260 120 290 C60 260 0 210 0 130 V40 Z" fill="#0b3a82" /><path d="M120 0 L240 40 V130 C240 210 180 260 120 290 Z" fill="rgba(255,255,255,0.08)" /><path d="M70 120 l34 34 l66 -72" fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/></g></g><g transform="translate(700 300) scale(1.1)"><g transform="translate(0 0) scale(1)"><ellipse cx="0" cy="6" rx="110" ry="22" fill="#cfcac4"/><rect x="-110" y="-8" width="220" height="18" rx="9" fill="#ffffff" /><path d="M-82 10 A82 82 0 0 0 82 10 Z" fill="#2a2a2a" /><path d="M-82 10 A82 82 0 0 0 82 10 Z" fill="rgba(255,255,255,0.08)" /><circle cx="0" cy="46" r="28" fill="#111" /><circle cx="0" cy="46" r="16" fill="#2c3e50" /><circle cx="-6" cy="40" r="5" fill="rgba(255,255,255,0.7)" /><path d="M-60 22 Q-40 60 -10 74" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="6" stroke-linecap="round"/></g></g><g transform="translate(660 420) scale(0.8)"><g transform="translate(0 0) scale(1)"><path d="M20 70 V44 A40 40 0 0 1 100 44 V70" fill="none" stroke="#4b5a72" stroke-width="14"/><rect x="0" y="64" width="120" height="100" rx="14" fill="#00a6a6" /><circle cx="60" cy="104" r="13" fill="#1b2638" /><rect x="55" y="108" width="10" height="30" rx="5" fill="#1b2638" /></g></g>
+</svg>

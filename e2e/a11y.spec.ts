@@ -31,7 +31,7 @@ test.describe("staff pages (sales officer)", () => {
 
 test.describe("catalogue pages (procurement officer)", () => {
   test.use({ storageState: STATE.procurement });
-  for (const path of ["/ops/catalogue/new", "/ops/catalogue/categories", "/ops/catalogue/brands", "/ops/catalogue/tags", "/ops/catalogue/services", "/ops/catalogue/services/infrastructure"]) {
+  for (const path of ["/ops/catalogue/new", "/ops/catalogue/categories", "/ops/catalogue/brands", "/ops/catalogue/tags", "/ops/catalogue/services", "/ops/catalogue/services/infrastructure", "/ops/catalogue/slides"]) {
     test(`${path} is accessible`, async ({ page }) => {
       await page.goto(path);
       await expect(page.locator("main h1")).toBeVisible();

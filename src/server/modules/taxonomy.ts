@@ -1,7 +1,7 @@
 import { and, asc, count, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { DB } from "../db/client";
-import { brands, categories, media, products, productTags, tags } from "../db/schema";
+import { brands, categories, media, products, productTags, slides, tags } from "../db/schema";
 import { authorize, type Actor } from "../authz/policy";
 import { conflict, invalid, notFound } from "../lib/errors";
 import { slugify } from "../lib/slug";
@@ -227,7 +227,7 @@ export const specsToText = (specs: { name: string; value: string }[]) => specs.m
 
 /** Confirms an image owner exists before files are stored for it. */
 export async function assertImageOwner(db: DB, type: OwnerType, id: string) {
-  const table = type === "product" ? products : type === "category" ? categories : type === "brand" ? brands : null;
+  const table = type === "product" ? products : type === "category" ? categories : type === "brand" ? brands : type === "slide" ? slides : null;
   if (!table) {
     if (type === "service" && SERVICE_AREAS.some((s) => s.slug === id)) return;
     throw notFound("Unknown page for this image.");

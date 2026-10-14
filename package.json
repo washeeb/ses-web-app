@@ -23,6 +23,8 @@
     "sim:kingsview": "tsx scripts/simulate-kingsview.ts",
     "check": "npm run typecheck && npm run lint && npm test",
     "admin:create": "tsx scripts/create-admin.ts",
+    "images:build": "node scripts/illustrations.mjs",
+    "images:starter": "tsx scripts/starter-images.ts",
     "brand:build": "node scripts/brand-assets.mjs",
     "package:shared": "node scripts/package-shared.mjs",
     "test:e2e": "playwright test"
