@@ -669,6 +669,8 @@ const CATEGORY_ALT = {
   "professional-services": ["professionalCat", "Illustration of a checklist and a laptop"],
   security: ["securityCat", "Illustration of a security shield, a camera and a padlock"],
 };
+/** Whether slides and store categories use the 3D renders. Off: Synclytics chose the drawings (2026-10-14). */
+const USE_3D = false;
 /** Store categories pictured by a 3D render (assets/renders/<name>.webp). */
 const CATEGORY_3D = { networking: "networking-light", computing: "computing-light", software: "software-light", "managed-services": "managed-light", "professional-services": "professional-light", security: "security-light" };
 /** Starter slides (available services only): wording is a draft for Synclytics to edit in operations. */
@@ -717,6 +719,7 @@ async function render(scene, theme) {
  * (not committed: too large); it is kept as a high-quality <name>.webp, which is what the repository stores.
  */
 async function render3d(name) {
+  if (!USE_3D) return null;
   const png = path.join("assets/renders", `${name}.png`);
   const src = path.join("assets/renders", `${name}.webp`);
   if (existsSync(png)) await sharp(png).webp({ quality: 95, effort: 6 }).toFile(src);

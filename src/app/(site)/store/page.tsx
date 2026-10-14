@@ -7,6 +7,7 @@ import { Badge, DemoNotice, EmptyState, Money } from "@/components/ui";
 import { AvailabilityBadge } from "@/components/availability";
 import { LiveRefresh } from "@/components/live-refresh";
 import { NoPicture, Picture } from "@/components/picture";
+import { mainImages } from "@/server/modules/media";
 
 export const metadata: Metadata = { title: "Store", description: "Hardware, software licences, subscriptions and service packages from Synclytics Enterprise Systems." };
 
@@ -33,6 +34,10 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
   const shownBrands = brands.filter((b) => b.active && b.productCount > 0);
   const activeTag = sp.tag ? tags.find((t) => t.slug === sp.tag) : null;
   const activeCat = cats.find((c) => c.slug === sp.category);
+  const catImages = await mainImages(db, "category", shownCats.map((c) => c.id));
+  const activeCatImage = activeCat ? catImages.get(activeCat.id) : undefined;
+  const browsing = !sp.q && !sp.type && !sp.category && !sp.brand && !sp.tag;
+  const topCats = shownCats.filter((c) => c.depth === 0 && catImages.has(c.id));
   const anyDemo = items.some((i) => i.isDemo);
   const link = (change: Partial<SP>) => {
     const next = new URLSearchParams();
@@ -47,8 +52,26 @@ export default async function StorePage({ searchParams }: { searchParams: Promis
           <h1 className="text-3xl font-bold text-slate-900">{activeCat?.name ?? "Store"}</h1>
           <p className="mt-1 max-w-2xl text-slate-600">{activeCat?.description || "Hardware, software licences, subscriptions and service packages. Prices in GHS."}</p>
         </div>
-        <LiveRefresh topics={["catalogue", "stock"]} />
+        <div className="flex items-end gap-4">
+          <LiveRefresh topics={["catalogue", "stock"]} />
+          {activeCatImage && <Picture m={activeCatImage} sizes="240px" fallbackWidth={320} priority className="hidden aspect-[3/2] w-60 rounded-xl object-cover sm:block" alt="" />}
+        </div>
       </div>
+      {browsing && topCats.length > 0 && (
+        <section className="mt-6" aria-labelledby="by-category">
+          <h2 id="by-category" className="text-lg font-semibold text-slate-900">Shop by category</h2>
+          <ul className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+            {topCats.map((c) => (
+              <li key={c.id}>
+                <Link href={link({ category: c.slug })} className="group block overflow-hidden rounded-xl border border-slate-200 bg-white hover:border-teal-700">
+                  <Picture m={catImages.get(c.id)!} sizes="(min-width: 1024px) 180px, (min-width: 768px) 30vw, 45vw" fallbackWidth={320} className="aspect-[3/2] w-full object-cover" alt="" />
+                  <span className="block px-3 py-2 text-sm font-semibold text-slate-900 group-hover:text-teal-700">{c.name}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {anyDemo && (
         <div className="mt-4">
           <DemoNotice>Listings marked “Demonstration” are sample products and prices for evaluation.</DemoNotice>

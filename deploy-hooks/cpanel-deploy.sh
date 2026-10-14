@@ -11,19 +11,28 @@ echo "Deploying $(git -C "$SRC" log -1 --format='%h %s' 2>/dev/null || echo bund
 mkdir -p "$APP"
 # Uploaded documents live beside the app, never inside it (rsync --delete would remove them).
 mkdir -p "$HOME/ses-data/uploads" && chmod 700 "$HOME/ses-data" 2>/dev/null || true
+# Style and script files of earlier builds (.next/static, content-hashed names) are kept for two weeks: pages that
+# browsers or the server's page cache still hold point at them, and would show unstyled if they vanished.
 if command -v rsync >/dev/null 2>&1; then
   rsync -a --delete \
-    --exclude '.git' --exclude '.cpanel.yml' --exclude '.env.production' --exclude 'tmp/' \
+    --exclude '.git' --exclude '.cpanel.yml' --exclude '.env.production' --exclude 'tmp/' --exclude '/.next/static/' \
     "$SRC/" "$APP/"
+  mkdir -p "$APP/.next/static"
+  rsync -a "$SRC/.next/static/" "$APP/.next/static/"
 else
-  # Fallback without rsync: replace code directories, keep .env.production and tmp/.
+  # Fallback without rsync: replace code directories, keep .env.production, tmp/ and earlier static files.
+  OLD_STATIC="$(mktemp -d)"
+  if [ -d "$APP/.next/static" ]; then cp -a "$APP/.next/static/." "$OLD_STATIC/"; fi
   for item in "$SRC"/* "$SRC"/.next; do
     name="$(basename "$item")"
     [ "$name" = "tmp" ] && continue
     rm -rf "${APP:?}/$name"
     cp -a "$item" "$APP/"
   done
+  cp -an "$OLD_STATIC/." "$APP/.next/static/"
+  rm -rf "$OLD_STATIC"
 fi
+find "$APP/.next/static" -type f -mtime +14 -delete 2>/dev/null || true
 
 # Node.js chosen in "Setup Node.js App" lives in a CloudLinux virtual environment; use the newest.
 NODE="$(ls -d "$HOME"/nodevenv/*/*/bin/node 2>/dev/null | grep "/nodevenv/$(basename "$APP")/" | sort -V | tail -1 || true)"
