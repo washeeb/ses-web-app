@@ -2,10 +2,12 @@
 // Synclytics starter illustrations: flat vector drawings in the brand navy and teal for slides, service areas and
 // store categories. They contain no text, people or real brands (product photos stay real photos).
 // Writes the SVG sources to assets/illustrations and web copies (WebP 320/800/1600) plus a manifest to
-// assets/starter-images, which `npm run images:starter` installs into the picture library.
+// assets/starter-images, which `npm run images:starter` installs into the picture library. Slides and store
+// categories use the 3D renders in assets/renders (scripts/blender/starter_3d.py) when they exist.
 // Usage: npm run images:build    (shared drawing parts with the KingsView app; palette and scenes are Synclytics')
 import sharp from "sharp";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const W = 1200;
@@ -667,6 +669,8 @@ const CATEGORY_ALT = {
   "professional-services": ["professionalCat", "Illustration of a checklist and a laptop"],
   security: ["securityCat", "Illustration of a security shield, a camera and a padlock"],
 };
+/** Store categories pictured by a 3D render (assets/renders/<name>.webp). */
+const CATEGORY_3D = { networking: "networking-light", computing: "computing-light", software: "software-light", "managed-services": "managed-light", "professional-services": "professional-light", security: "security-light" };
 /** Starter slides (available services only): wording is a draft for Synclytics to edit in operations. */
 const SLIDES = [
   { key: "hero", headline: "Technology that keeps your business connected, secure and running.", body: "Enterprise software, systems integration, cloud and networks, cybersecurity, hardware and data, delivered as one accountable partner.", ctaLabel: "Request a consultation", ctaHref: "/contact", alt: "Illustration of servers, a laptop dashboard, a security shield and a router" },
@@ -679,6 +683,13 @@ const SLIDES = [
 // ---------- build ----------
 const SRC_DIR = "assets/illustrations";
 const OUT_DIR = "assets/starter-images";
+// Fingerprints of every earlier starter picture, so the installer may replace them (and only them) later.
+const sha = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
+const replaceable = new Set();
+if (existsSync(path.join(OUT_DIR, "manifest.json"))) {
+  for (const h of JSON.parse(readFileSync(path.join(OUT_DIR, "manifest.json"), "utf8")).replaceable ?? []) replaceable.add(h);
+  for (const d of readdirSync(OUT_DIR)) if (existsSync(path.join(OUT_DIR, d, "1600.webp"))) replaceable.add(sha(path.join(OUT_DIR, d, "1600.webp")));
+}
 rmSync(OUT_DIR, { recursive: true, force: true });
 mkdirSync(SRC_DIR, { recursive: true });
 mkdirSync(OUT_DIR, { recursive: true });
@@ -701,10 +712,36 @@ async function render(scene, theme) {
   return name;
 }
 
+/**
+ * A 3D render converted to the web copies, or null when there is none. Blender writes assets/renders/<name>.png
+ * (not committed: too large); it is kept as a high-quality <name>.webp, which is what the repository stores.
+ */
+async function render3d(name) {
+  const png = path.join("assets/renders", `${name}.png`);
+  const src = path.join("assets/renders", `${name}.webp`);
+  if (existsSync(png)) await sharp(png).webp({ quality: 95, effort: 6 }).toFile(src);
+  if (!existsSync(src)) return null;
+  const out = `3d-${name}`;
+  if (rendered.has(out)) return out;
+  const dir = path.join(OUT_DIR, out);
+  mkdirSync(dir, { recursive: true });
+  for (const width of [320, 800, 1600]) {
+    await sharp(src).resize({ width }).webp({ quality: width === 320 ? 72 : 82, effort: 6 }).toFile(path.join(dir, `${width}.webp`));
+  }
+  rendered.set(out, true);
+  return out;
+}
+
 const manifest = { services: [], categories: [], slides: [] };
 for (const [slug, [scene, alt]] of Object.entries(SERVICE_ALT)) manifest.services.push({ slug, image: await render(scene, "light"), alt });
-for (const [slug, [scene, alt]] of Object.entries(CATEGORY_ALT)) manifest.categories.push({ slug, image: await render(scene, "light"), alt });
-for (const s of SLIDES) manifest.slides.push({ ...s, image: await render(s.key, "dark") });
+for (const [slug, [scene, alt]] of Object.entries(CATEGORY_ALT)) {
+  const r = CATEGORY_3D[slug] && (await render3d(CATEGORY_3D[slug]));
+  manifest.categories.push({ slug, image: r ?? (await render(scene, "light")), alt: r ? alt.replace("Illustration", "3D illustration") : alt });
+}
+for (const s of SLIDES) {
+  const r = await render3d(`${s.key}-dark`);
+  manifest.slides.push({ ...s, image: r ?? (await render(s.key, "dark")), alt: r ? s.alt.replace("Illustration", "3D illustration") : s.alt });
+}
+manifest.replaceable = [...replaceable].sort();
 writeFileSync(path.join(OUT_DIR, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
 console.log(`Wrote ${rendered.size} illustrations to ${SRC_DIR} and ${OUT_DIR}`);
-

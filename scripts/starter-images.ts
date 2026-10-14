@@ -29,8 +29,9 @@ if (!actor || !can(actor, "catalogue.write")) {
   await close();
   process.exit(1);
 }
-const { added, skipped } = await installStarterImages(db, actor, dir);
+const { added, updated, skipped } = await installStarterImages(db, actor, dir);
 await close();
 for (const a of added) console.log(`added    ${a}`);
+for (const u of updated) console.log(`updated  ${u}`);
 for (const s of skipped) console.log(`skipped  ${s}`);
-console.log(`${added.length} picture(s) added.`);
+console.log(`${added.length} picture(s) added, ${updated.length} starter picture(s) updated.`);

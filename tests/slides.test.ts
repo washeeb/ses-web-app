@@ -1,13 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { actorFor, setupDb } from "./helpers";
 import type { DB } from "@/server/db/client";
-import { listMedia } from "@/server/modules/media";
+import { addImage, listMedia } from "@/server/modules/media";
 import { deleteSlide, listSlides, liveSlides, moveSlide, saveSlide, slideInput, slideStatus } from "@/server/modules/slides";
 import { installStarterImages } from "@/server/modules/starter-images";
 import { SERVICE_AREAS } from "@/content/site";
+import { eq } from "drizzle-orm";
+import { categories } from "@/server/db/schema";
 
 let db: DB;
 let close: () => Promise<void>;
@@ -60,6 +62,17 @@ describe("slides", () => {
   });
 });
 
+/** Enough of a PNG for type and size detection (a picture staff uploaded, not a starter one). */
+function pngHeader(w: number, h: number) {
+  const b = Buffer.alloc(40);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(b, 0);
+  b.writeUInt32BE(13, 8);
+  b.write("IHDR", 12, "latin1");
+  b.writeUInt32BE(w, 16);
+  b.writeUInt32BE(h, 20);
+  return b;
+}
+
 describe("starter pictures", () => {
   it("fill empty services, categories and slides once, then leave them alone", async () => {
     const owner = await as("procurement@ses.demo");
@@ -71,6 +84,33 @@ describe("starter pictures", () => {
     expect(await listMedia(db, "service", ["managed-soc"])).toHaveLength(1);
     const again = await installStarterImages(db, owner, "assets/starter-images");
     expect(again.added).toEqual([]);
+    expect(again.updated).toEqual([]);
     expect(await listSlides(db)).toHaveLength(5);
+  });
+
+  it("replace only earlier starter pictures with a newer version, never pictures staff uploaded", async () => {
+    const owner = await as("procurement@ses.demo");
+    const catId = async (slug: string) => (await db.select().from(categories).where(eq(categories.slug, slug)))[0]!.id;
+    // Staff replace the security category picture with their own.
+    const securityCat = await catId("security");
+    for (const m of await listMedia(db, "category", [securityCat])) await (await import("@/server/modules/media")).deleteImage(db, owner, m.id);
+    await addImage(db, owner, "category", securityCat, { files: [{ width: 1600, bytes: pngHeader(1600, 1067) }], alt: "Our own photo" });
+    // A newer release: every category and slide gets a different picture, and today's become "earlier" ones.
+    const dir = await mkdtemp(path.join(tmpdir(), "ses-starter-"));
+    await cp("assets/starter-images", dir, { recursive: true });
+    const m = JSON.parse(await readFile(path.join(dir, "manifest.json"), "utf8"));
+    const installed = [...(await listMedia(db, "category", [await catId("networking")])), ...(await listMedia(db, "slide", (await listSlides(db)).map((x) => x.id)))].map((x) => x.sha256);
+    m.replaceable = [...(m.replaceable ?? []), ...installed];
+    const other = m.services.find((x: { slug: string }) => x.slug === "data-protection").image;
+    for (const c of m.categories) c.image = other;
+    for (const x of m.slides) x.image = other;
+    await writeFile(path.join(dir, "manifest.json"), JSON.stringify(m));
+    const r = await installStarterImages(db, owner, dir);
+    expect(r.updated).toContain("category networking");
+    expect(r.updated.filter((u) => u.startsWith("slide"))).toHaveLength(5);
+    expect(r.skipped).toContain("category security (has its own picture)");
+    expect((await listMedia(db, "category", [securityCat]))[0]!.alt).toBe("Our own photo");
+    expect(await listSlides(db)).toHaveLength(5);
+    await rm(dir, { recursive: true, force: true });
   });
 });
