@@ -43,6 +43,27 @@
       "when": 1791707666670,
       "tag": "0005_knowledge_ai",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791902898562,
+      "tag": "0006_catalogue_media",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791909086965,
+      "tag": "0007_inventory",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791967409413,
+      "tag": "0008_slides",
+      "breakpoints": true
     }
   ]
 }

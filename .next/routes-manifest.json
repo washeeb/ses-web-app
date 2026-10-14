@@ -32,7 +32,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), geolocation=(), payment=()"
+          "value": "camera=(self), microphone=(), geolocation=(), payment=()"
         },
         {
           "key": "Cross-Origin-Opener-Policy",
@@ -100,6 +100,14 @@
       "namedRegex": "^/api/exports/(?<nxtPkind>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/api/reports/[name]",
+      "regex": "^/api/reports/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPname": "nxtPname"
+      },
+      "namedRegex": "^/api/reports/(?<nxtPname>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/api/v1/integrations/[connectionId]/events",
       "regex": "^/api/v1/integrations/([^/]+?)/events(?:/)?$",
       "routeKeys": {
@@ -116,12 +124,53 @@
       "namedRegex": "^/help/(?<nxtPslug>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/media/[id]/[file]",
+      "regex": "^/media/([^/]+?)/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid",
+        "nxtPfile": "nxtPfile"
+      },
+      "namedRegex": "^/media/(?<nxtPid>[^/]+?)/(?<nxtPfile>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/ops/assets/[id]",
       "regex": "^/ops/assets/([^/]+?)(?:/)?$",
       "routeKeys": {
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/ops/assets/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/ops/catalogue/brands/[id]",
+      "regex": "^/ops/catalogue/brands/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/catalogue/brands/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/ops/catalogue/categories/[id]",
+      "regex": "^/ops/catalogue/categories/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/catalogue/categories/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/ops/catalogue/services/[slug]",
+      "regex": "^/ops/catalogue/services/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPslug": "nxtPslug"
+      },
+      "namedRegex": "^/ops/catalogue/services/(?<nxtPslug>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/ops/catalogue/slides/[id]",
+      "regex": "^/ops/catalogue/slides/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/catalogue/slides/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
       "page": "/ops/catalogue/[id]",
@@ -146,6 +195,22 @@
         "nxtPid": "nxtPid"
       },
       "namedRegex": "^/ops/integrations/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/ops/inventory/counts/[id]",
+      "regex": "^/ops/inventory/counts/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/inventory/counts/(?<nxtPid>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/ops/inventory/transfers/[id]",
+      "regex": "^/ops/inventory/transfers/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/ops/inventory/transfers/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
       "page": "/ops/invoices/[id]",
@@ -466,6 +531,18 @@
       "namedRegex": "^/ops/catalogue(?:/)?$"
     },
     {
+      "page": "/ops/catalogue/brands",
+      "regex": "^/ops/catalogue/brands(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/catalogue/brands(?:/)?$"
+    },
+    {
+      "page": "/ops/catalogue/categories",
+      "regex": "^/ops/catalogue/categories(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/catalogue/categories(?:/)?$"
+    },
+    {
       "page": "/ops/catalogue/import",
       "regex": "^/ops/catalogue/import(?:/)?$",
       "routeKeys": {},
@@ -476,6 +553,24 @@
       "regex": "^/ops/catalogue/new(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/ops/catalogue/new(?:/)?$"
+    },
+    {
+      "page": "/ops/catalogue/services",
+      "regex": "^/ops/catalogue/services(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/catalogue/services(?:/)?$"
+    },
+    {
+      "page": "/ops/catalogue/slides",
+      "regex": "^/ops/catalogue/slides(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/catalogue/slides(?:/)?$"
+    },
+    {
+      "page": "/ops/catalogue/tags",
+      "regex": "^/ops/catalogue/tags(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/catalogue/tags(?:/)?$"
     },
     {
       "page": "/ops/contracts",
@@ -506,6 +601,60 @@
       "regex": "^/ops/integrations(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/ops/integrations(?:/)?$"
+    },
+    {
+      "page": "/ops/inventory",
+      "regex": "^/ops/inventory(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/inventory(?:/)?$"
+    },
+    {
+      "page": "/ops/inventory/counts",
+      "regex": "^/ops/inventory/counts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/inventory/counts(?:/)?$"
+    },
+    {
+      "page": "/ops/inventory/labels",
+      "regex": "^/ops/inventory/labels(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/inventory/labels(?:/)?$"
+    },
+    {
+      "page": "/ops/inventory/locations",
+      "regex": "^/ops/inventory/locations(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/inventory/locations(?:/)?$"
+    },
+    {
+      "page": "/ops/inventory/movements",
+      "regex": "^/ops/inventory/movements(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/inventory/movements(?:/)?$"
+    },
+    {
+      "page": "/ops/inventory/receive",
+      "regex": "^/ops/inventory/receive(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/inventory/receive(?:/)?$"
+    },
+    {
+      "page": "/ops/inventory/reorder",
+      "regex": "^/ops/inventory/reorder(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/inventory/reorder(?:/)?$"
+    },
+    {
+      "page": "/ops/inventory/serials",
+      "regex": "^/ops/inventory/serials(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/inventory/serials(?:/)?$"
+    },
+    {
+      "page": "/ops/inventory/transfers",
+      "regex": "^/ops/inventory/transfers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/inventory/transfers(?:/)?$"
     },
     {
       "page": "/ops/invoices",
@@ -578,6 +727,48 @@
       "regex": "^/ops/reports(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/ops/reports(?:/)?$"
+    },
+    {
+      "page": "/ops/reports/finance",
+      "regex": "^/ops/reports/finance(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/reports/finance(?:/)?$"
+    },
+    {
+      "page": "/ops/reports/forecast",
+      "regex": "^/ops/reports/forecast(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/reports/forecast(?:/)?$"
+    },
+    {
+      "page": "/ops/reports/inventory",
+      "regex": "^/ops/reports/inventory(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/reports/inventory(?:/)?$"
+    },
+    {
+      "page": "/ops/reports/pipeline",
+      "regex": "^/ops/reports/pipeline(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/reports/pipeline(?:/)?$"
+    },
+    {
+      "page": "/ops/reports/products",
+      "regex": "^/ops/reports/products(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/reports/products(?:/)?$"
+    },
+    {
+      "page": "/ops/reports/purchasing",
+      "regex": "^/ops/reports/purchasing(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/reports/purchasing(?:/)?$"
+    },
+    {
+      "page": "/ops/reports/sales",
+      "regex": "^/ops/reports/sales(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/ops/reports/sales(?:/)?$"
     },
     {
       "page": "/ops/returns",

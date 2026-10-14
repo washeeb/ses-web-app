@@ -12523,6 +12523,7 @@ __export(schema_exports, {
   approvalRequests: () => approvalRequests,
   assets: () => assets,
   auditLog: () => auditLog,
+  brands: () => brands,
   categories: () => categories,
   currencies: () => currencies,
   departments: () => departments,
@@ -12537,6 +12538,7 @@ __export(schema_exports, {
   kbArticles: () => kbArticles,
   leads: () => leads,
   mailOutbox: () => mailOutbox,
+  media: () => media,
   notifications: () => notifications,
   orderLines: () => orderLines,
   orders: () => orders,
@@ -12546,6 +12548,7 @@ __export(schema_exports, {
   payments: () => payments,
   permissionSets: () => permissionSets,
   productMappings: () => productMappings,
+  productTags: () => productTags,
   productType: () => productType,
   productVariants: () => productVariants,
   products: () => products,
@@ -12564,12 +12567,19 @@ __export(schema_exports, {
   serviceContracts: () => serviceContracts,
   sessions: () => sessions,
   settings: () => settings,
+  slides: () => slides,
+  stockCountLines: () => stockCountLines,
+  stockCounts: () => stockCounts,
   stockLevels: () => stockLevels,
   stockLocations: () => stockLocations,
   stockMovements: () => stockMovements,
   stockReservations: () => stockReservations,
+  stockSerials: () => stockSerials,
+  stockTransferLines: () => stockTransferLines,
+  stockTransfers: () => stockTransfers,
   subscriptions: () => subscriptions,
   suppliers: () => suppliers,
+  tags: () => tags,
   taxRates: () => taxRates,
   ticketMessages: () => ticketMessages,
   tickets: () => tickets,
@@ -12751,7 +12761,67 @@ var categories = pgTable("categories", {
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
   description: text("description"),
+  /** Optional parent for sub-categories (one level deep keeps the store menu simple). */
+  parentId: uuid("parent_id"),
+  /** Three-letter code used in automatic SKUs (SE-<code>-00001); defaults from the slug. */
+  skuCode: text("sku_code"),
+  /** Hidden categories stay on their products but are not offered in the store. */
+  active: boolean("active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0)
+});
+var brands = pgTable("brands", {
+  id: id(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  description: text("description"),
+  website: text("website"),
+  active: boolean("active").notNull().default(true),
+  createdAt: createdAt()
+});
+var tags = pgTable("tags", {
+  id: id(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  createdAt: createdAt()
+});
+var media = pgTable(
+  "media",
+  {
+    id: id(),
+    /** product | category | brand | service */
+    ownerType: text("owner_type").notNull(),
+    /** Row id, or the service-area slug. */
+    ownerId: text("owner_id").notNull(),
+    /** Widths stored, ascending (e.g. 320, 800, 1600). */
+    widths: integer("widths").array().notNull(),
+    /** webp | jpg | png */
+    ext: text("ext").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    bytes: integer("bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    alt: text("alt").notNull().default(""),
+    /** 0 = main image. */
+    sortOrder: integer("sort_order").notNull().default(0),
+    uploadedBy: uuid("uploaded_by").references(() => users.id),
+    deletedAt: ts("deleted_at"),
+    createdAt: createdAt()
+  },
+  (t) => [index().on(t.ownerType, t.ownerId)]
+);
+var slides = pgTable("slides", {
+  id: id(),
+  headline: text("headline").notNull(),
+  body: text("body"),
+  ctaLabel: text("cta_label"),
+  /** A path on this site ("/shop") or an https:// address. */
+  ctaHref: text("cta_href"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  /** YYYY-MM-DD; empty = no limit. */
+  startsOn: text("starts_on"),
+  endsOn: text("ends_on"),
+  createdAt: createdAt()
 });
 var products = pgTable("products", {
   id: id(),
@@ -12761,6 +12831,9 @@ var products = pgTable("products", {
   description: text("description"),
   type: productType("type").notNull(),
   categoryId: uuid("category_id").references(() => categories.id),
+  brandId: uuid("brand_id").references(() => brands.id),
+  /** Specification sheet shown on the product page: [{ name: "Licence term", value: "12 months" }, …]. */
+  specs: jsonb("specs").$type().notNull().default([]),
   /** draft products are never shown publicly */
   status: text("status").notNull().default("draft"),
   sourceConnectionId: uuid("source_connection_id"),
@@ -12768,6 +12841,14 @@ var products = pgTable("products", {
   createdAt: createdAt(),
   updatedAt: updatedAt()
 });
+var productTags = pgTable(
+  "product_tags",
+  {
+    productId: uuid("product_id").notNull().references(() => products.id),
+    tagId: uuid("tag_id").notNull().references(() => tags.id)
+  },
+  (t) => [primaryKey({ columns: [t.productId, t.tagId] }), index().on(t.tagId)]
+);
 var productVariants = pgTable(
   "product_variants",
   {
@@ -12783,11 +12864,23 @@ var productVariants = pgTable(
     billingPeriod: text("billing_period"),
     /** Manufacturer/SES warranty from the fulfilment date; 0 = none. */
     warrantyMonths: integer("warranty_months").notNull().default(0),
+    /** Average cost per unit of SES-held stock (weighted on each receipt). */
+    costMinor: money("cost_minor"),
+    /** Manufacturer barcode (EAN/UPC) if the item has one; labels use the SKU otherwise. */
+    barcode: text("barcode"),
+    /** Alert and suggest a purchase when sellable stock falls to this level. */
+    reorderPoint: integer("reorder_point"),
+    reorderQty: integer("reorder_qty"),
+    /** Each unit has a serial number, recorded on receipt and on sale (and on its warranty). */
+    serialTracked: boolean("serial_tracked").notNull().default(false),
+    preferredSupplierId: uuid("preferred_supplier_id"),
+    leadTimeDays: integer("lead_time_days"),
+    lowStockNotifiedAt: ts("low_stock_notified_at"),
     active: boolean("active").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt()
   },
-  (t) => [check("price_non_negative", sql`${t.priceMinor} >= 0`)]
+  (t) => [check("price_non_negative", sql`${t.priceMinor} >= 0`), uniqueIndex("product_variants_barcode_unique").on(t.barcode).where(sql`${t.barcode} IS NOT NULL`)]
 );
 var stockLocations = pgTable("stock_locations", {
   id: id(),
@@ -12795,7 +12888,15 @@ var stockLocations = pgTable("stock_locations", {
   name: text("name").notNull(),
   organizationId: uuid("organization_id").notNull().references(() => organizations.id),
   /** set when stock at this location is supplied by a partner connection */
-  connectionId: uuid("connection_id")
+  connectionId: uuid("connection_id"),
+  /** warehouse | shop | van | other | partner (partner = fed by a connection, never edited by hand) */
+  kind: text("kind").notNull().default("warehouse"),
+  /** Stock here can be sold (not a quarantine or damaged-goods location). */
+  sellable: boolean("sellable").notNull().default(true),
+  /** Where deliveries go unless another location is chosen. */
+  isDefault: boolean("is_default").notNull().default(false),
+  active: boolean("active").notNull().default(true),
+  address: text("address")
 });
 var stockLevels = pgTable(
   "stock_levels",
@@ -13180,7 +13281,8 @@ var goodsReceiptLines = pgTable("goods_receipt_lines", {
   id: id(),
   goodsReceiptId: uuid("goods_receipt_id").notNull().references(() => goodsReceipts.id),
   purchaseOrderLineId: uuid("purchase_order_line_id").notNull().references(() => purchaseOrderLines.id),
-  quantity: integer("quantity").notNull()
+  quantity: integer("quantity").notNull(),
+  serials: text("serials").array().notNull().default(sql`'{}'::text[]`)
 });
 var stockMovements = pgTable(
   "stock_movements",
@@ -13190,8 +13292,13 @@ var stockMovements = pgTable(
     locationId: uuid("location_id").notNull().references(() => stockLocations.id),
     /** Signed change to on-hand quantity. */
     quantity: integer("quantity").notNull(),
-    /** receipt | adjustment | fulfilment | return */
+    /**
+     * receipt | fulfilment | return | transfer_out | transfer_in | count | damaged | lost | expired | internal_use |
+     * supplier_return | found | correction (older rows: adjustment)
+     */
     reason: text("reason").notNull(),
+    /** Average cost per unit when the movement happened. */
+    unitCostMinor: money("unit_cost_minor"),
     refType: text("ref_type"),
     refId: text("ref_id"),
     note: text("note"),
@@ -13199,6 +13306,82 @@ var stockMovements = pgTable(
     createdAt: createdAt()
   },
   (t) => [index().on(t.variantId, t.createdAt)]
+);
+var stockSerials = pgTable(
+  "stock_serials",
+  {
+    id: id(),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id),
+    serial: text("serial").notNull(),
+    /** in_stock | in_transit | sold | written_off | returned_to_supplier */
+    status: text("status").notNull().default("in_stock"),
+    locationId: uuid("location_id").references(() => stockLocations.id),
+    orderId: uuid("order_id"),
+    receivedAt: ts("received_at").notNull().defaultNow(),
+    soldAt: ts("sold_at"),
+    note: text("note")
+  },
+  (t) => [unique().on(t.variantId, t.serial), index().on(t.serial)]
+);
+var stockTransfers = pgTable("stock_transfers", {
+  id: id(),
+  number: text("number").notNull().unique(),
+  fromLocationId: uuid("from_location_id").notNull().references(() => stockLocations.id),
+  toLocationId: uuid("to_location_id").notNull().references(() => stockLocations.id),
+  /** draft | in_transit | received | cancelled */
+  status: text("status").notNull().default("draft"),
+  note: text("note"),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  dispatchedBy: uuid("dispatched_by").references(() => users.id),
+  dispatchedAt: ts("dispatched_at"),
+  receivedBy: uuid("received_by").references(() => users.id),
+  receivedAt: ts("received_at"),
+  createdAt: createdAt()
+});
+var stockTransferLines = pgTable(
+  "stock_transfer_lines",
+  {
+    id: id(),
+    transferId: uuid("transfer_id").notNull().references(() => stockTransfers.id),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id),
+    quantity: integer("quantity").notNull(),
+    /** Serial numbers moved (serial-tracked items). */
+    serials: text("serials").array().notNull().default(sql`'{}'::text[]`)
+  },
+  (t) => [unique().on(t.transferId, t.variantId), check("transfer_qty_positive", sql`${t.quantity} > 0`)]
+);
+var stockCounts = pgTable("stock_counts", {
+  id: id(),
+  number: text("number").notNull().unique(),
+  locationId: uuid("location_id").notNull().references(() => stockLocations.id),
+  categoryId: uuid("category_id").references(() => categories.id),
+  /** Counters do not see expected quantities. */
+  blind: boolean("blind").notNull().default(true),
+  /** open | completed | cancelled */
+  status: text("status").notNull().default("open"),
+  note: text("note"),
+  createdBy: uuid("created_by").notNull().references(() => users.id),
+  completedBy: uuid("completed_by").references(() => users.id),
+  completedAt: ts("completed_at"),
+  /** Value of the differences posted (negative = shortage). */
+  varianceValueMinor: money("variance_value_minor"),
+  createdAt: createdAt()
+});
+var stockCountLines = pgTable(
+  "stock_count_lines",
+  {
+    id: id(),
+    countId: uuid("count_id").notNull().references(() => stockCounts.id),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id),
+    /** System quantity when the count started (shown to counters unless the count is blind). */
+    expected: integer("expected").notNull(),
+    counted: integer("counted"),
+    /** System quantity at the moment this line was counted; the adjustment is counted − this. */
+    systemAtCount: integer("system_at_count"),
+    countedAt: ts("counted_at"),
+    unitCostMinor: money("unit_cost_minor")
+  },
+  (t) => [unique().on(t.countId, t.variantId)]
 );
 var documents = pgTable(
   "documents",
@@ -13233,6 +13416,8 @@ var warranties = pgTable(
     customerOrgId: uuid("customer_org_id").notNull().references(() => organizations.id),
     variantId: uuid("variant_id").notNull().references(() => productVariants.id),
     quantity: integer("quantity").notNull(),
+    /** Serial numbers of the units covered (serial-tracked items). */
+    serials: text("serials").array().notNull().default(sql`'{}'::text[]`),
     startsAt: ts("starts_at").notNull(),
     endsAt: ts("ends_at").notNull(),
     createdAt: createdAt()
@@ -35300,8 +35485,17 @@ var settingsSchema = external_exports.object({
   companyAddress: external_exports.string().trim().max(300),
   /** Ghana Revenue Authority taxpayer identification number (TIN), printed on invoices once set. */
   companyTin: external_exports.string().trim().max(40),
-  /** Bank / mobile money details printed on invoices. */
+  /** Extra payment notes printed on invoices under the account details below. */
   paymentInstructions: external_exports.string().trim().max(1e3),
+  /** Payment accounts printed on unpaid invoices; an account without its number is left out. */
+  bankName: external_exports.string().trim().max(80),
+  bankAccountName: external_exports.string().trim().max(120),
+  bankAccountNumber: external_exports.string().trim().max(40),
+  bankBranch: external_exports.string().trim().max(80),
+  momoMerchantName: external_exports.string().trim().max(120),
+  momoMerchantId: external_exports.string().trim().max(40),
+  telecelMerchantName: external_exports.string().trim().max(120),
+  telecelTillNumber: external_exports.string().trim().max(40),
   /** Renewal invoices are issued this many days before a subscription period ends. */
   renewalNoticeDays: external_exports.number().int().min(1).max(90),
   /** Unpaid renewals lapse this many days after the period ends. */
@@ -35313,6 +35507,8 @@ var settingsSchema = external_exports.object({
   aiDailyLimitPerUser: external_exports.number().int().min(0).max(500),
   supportEmail: external_exports.string().email(),
   supportPhone: external_exports.string().max(40),
+  /** Monday e-mail summary of the past week to staff who can read reports. */
+  weeklyReport: external_exports.boolean(),
   /** Data Protection Commission (Ghana) registration — shown publicly once set. */
   dpcRegistrationNumber: external_exports.string().trim().max(60),
   /** ISO date (YYYY-MM-DD) the DPC certificate expires (certificates last two years), or "". */
@@ -35340,6 +35536,15 @@ var DEFAULT_SETTINGS = {
   companyAddress: "Accra, Ghana",
   companyTin: "",
   paymentInstructions: "",
+  // From the Synclytics payment information (2026-10-14).
+  bankName: "Absa Bank",
+  bankAccountName: "Synclytics Enterprise",
+  bankAccountNumber: "0141159100",
+  bankBranch: "Ring Road Central",
+  momoMerchantName: "Synclytics Enterprise",
+  momoMerchantId: "328018",
+  telecelMerchantName: "Synclytics Enterprise",
+  telecelTillNumber: "464633",
   renewalNoticeDays: 30,
   renewalGraceDays: 14,
   ticketAutoCloseDays: 7,
@@ -35347,6 +35552,7 @@ var DEFAULT_SETTINGS = {
   aiDailyLimitPerUser: 20,
   supportEmail: "support@synclyticsenterprisesystems.com",
   supportPhone: "+233 00 000 0000",
+  weeklyReport: true,
   dpcRegistrationNumber: "",
   dpcRegistrationExpires: ""
 };
@@ -35400,6 +35606,62 @@ var manualPaymentInput = external_exports.object({
   externalReference: external_exports.string().trim().min(2, "Enter the bank, mobile money or receipt reference.").max(100),
   paidOn: external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use the date the money was received."),
   note: external_exports.string().trim().max(500).optional().default("")
+});
+
+// src/server/modules/inventory.ts
+var locationInput = external_exports.object({
+  code: external_exports.string().trim().toUpperCase().regex(/^[A-Z0-9-]{2,16}$/, "Code: 2\u201316 capital letters, digits or dashes."),
+  name: external_exports.string().trim().min(2).max(80),
+  kind: external_exports.enum(["warehouse", "shop", "van", "other"]),
+  sellable: external_exports.boolean(),
+  isDefault: external_exports.boolean(),
+  active: external_exports.boolean(),
+  address: external_exports.string().trim().max(300).optional().default("")
+});
+var ADJUST_REASONS = {
+  damaged: "decrease",
+  lost: "decrease",
+  expired: "decrease",
+  internal_use: "decrease",
+  supplier_return: "decrease",
+  found: "increase",
+  correction: "either"
+};
+var receiveInput = external_exports.object({
+  variantId: external_exports.string().uuid(),
+  locationId: external_exports.string().uuid().nullable().optional(),
+  quantity: external_exports.number().int().min(1).max(1e6),
+  unitCostMinor: external_exports.number().int().min(0).nullable().optional(),
+  serials: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).optional(),
+  note: external_exports.string().trim().max(300).optional().default("")
+});
+var adjustInput = external_exports.object({
+  variantId: external_exports.string().uuid(),
+  locationId: external_exports.string().uuid(),
+  reason: external_exports.enum(Object.keys(ADJUST_REASONS)),
+  quantity: external_exports.number().int().min(-1e6).max(1e6),
+  note: external_exports.string().trim().max(300),
+  serials: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).optional()
+});
+var transferInput = external_exports.object({
+  fromLocationId: external_exports.string().uuid(),
+  toLocationId: external_exports.string().uuid(),
+  note: external_exports.string().trim().max(300).optional().default(""),
+  lines: external_exports.array(external_exports.object({ variantId: external_exports.string().uuid(), quantity: external_exports.number().int().min(1).max(1e6), serials: external_exports.union([external_exports.string(), external_exports.array(external_exports.string())]).optional() })).min(1, "Add at least one item.").max(100)
+});
+var countInput = external_exports.object({
+  locationId: external_exports.string().uuid(),
+  categoryId: external_exports.string().uuid().nullable().optional(),
+  blind: external_exports.boolean().default(true),
+  note: external_exports.string().trim().max(300).optional().default("")
+});
+var stockSettingsInput = external_exports.object({
+  barcode: external_exports.union([external_exports.literal(""), external_exports.string().trim().regex(/^[A-Za-z0-9-]{4,40}$/, "Barcode: 4\u201340 letters, digits or dashes.")]),
+  reorderPoint: external_exports.number().int().min(0).max(1e6).nullable(),
+  reorderQty: external_exports.number().int().min(1).max(1e6).nullable(),
+  leadTimeDays: external_exports.number().int().min(0).max(365).nullable(),
+  serialTracked: external_exports.boolean(),
+  preferredSupplierId: external_exports.string().uuid().nullable().optional()
 });
 
 // src/server/modules/integrations/contracts.ts
@@ -35803,7 +36065,7 @@ async function seed(db2, opts) {
   const catRows = await db2.select().from(categories);
   const cat = (slug) => catRows.find((c) => c.slug === slug).id;
   let [warehouse] = await db2.select().from(stockLocations).where(eq(stockLocations.code, "ACC-MAIN"));
-  if (!warehouse) [warehouse] = await db2.insert(stockLocations).values({ code: "ACC-MAIN", name: "Accra main warehouse", organizationId: ses.id }).returning();
+  if (!warehouse) [warehouse] = await db2.insert(stockLocations).values({ code: "ACC-MAIN", name: "Accra main warehouse", kind: "warehouse", isDefault: true, organizationId: ses.id }).returning();
   const catalogue = [
     { slug: "business-laptop-14", name: "Business laptop 14-inch", summary: "Durable business laptop with 3-year warranty option. Demonstration listing.", type: "hardware", cat: "computing", variants: [
       { sku: "SES-LAP14-I5-16", name: "Core i5 \xB7 16 GB \xB7 512 GB SSD", price: 125e4, stock: 18 },
