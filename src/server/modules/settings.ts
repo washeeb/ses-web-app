@@ -32,8 +32,17 @@ export const settingsSchema = z.object({
   companyAddress: z.string().trim().max(300),
   /** Ghana Revenue Authority taxpayer identification number (TIN), printed on invoices once set. */
   companyTin: z.string().trim().max(40),
-  /** Bank / mobile money details printed on invoices. */
+  /** Extra payment notes printed on invoices under the account details below. */
   paymentInstructions: z.string().trim().max(1000),
+  /** Payment accounts printed on unpaid invoices; an account without its number is left out. */
+  bankName: z.string().trim().max(80),
+  bankAccountName: z.string().trim().max(120),
+  bankAccountNumber: z.string().trim().max(40),
+  bankBranch: z.string().trim().max(80),
+  momoMerchantName: z.string().trim().max(120),
+  momoMerchantId: z.string().trim().max(40),
+  telecelMerchantName: z.string().trim().max(120),
+  telecelTillNumber: z.string().trim().max(40),
   /** Renewal invoices are issued this many days before a subscription period ends. */
   renewalNoticeDays: z.number().int().min(1).max(90),
   /** Unpaid renewals lapse this many days after the period ends. */
@@ -71,6 +80,15 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   companyAddress: "Accra, Ghana",
   companyTin: "",
   paymentInstructions: "",
+  // From the Synclytics payment information (2026-10-14).
+  bankName: "Absa Bank",
+  bankAccountName: "Synclytics Enterprise",
+  bankAccountNumber: "0141159100",
+  bankBranch: "Ring Road Central",
+  momoMerchantName: "Synclytics Enterprise",
+  momoMerchantId: "328018",
+  telecelMerchantName: "Synclytics Enterprise",
+  telecelTillNumber: "464633",
   renewalNoticeDays: 30,
   renewalGraceDays: 14,
   ticketAutoCloseDays: 7,
@@ -82,6 +100,16 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   dpcRegistrationNumber: "",
   dpcRegistrationExpires: "",
 };
+
+/** The payment accounts to print, in order; accounts without a number are left out. */
+export function paymentMethods(s: CompanySettings) {
+  const pick = (lines: [string, string][]) => lines.filter(([, v]) => v);
+  const methods: { label: string; lines: [string, string][] }[] = [];
+  if (s.bankAccountNumber) methods.push({ label: "Bank transfer", lines: pick([["Bank", s.bankName], ["Account name", s.bankAccountName], ["Account number", s.bankAccountNumber], ["Branch", s.bankBranch]]) });
+  if (s.momoMerchantId) methods.push({ label: "MTN MoMo", lines: pick([["Merchant name", s.momoMerchantName], ["Merchant ID", s.momoMerchantId]]) });
+  if (s.telecelTillNumber) methods.push({ label: "Telecel Cash", lines: pick([["Merchant name", s.telecelMerchantName], ["Till number", s.telecelTillNumber]]) });
+  return methods;
+}
 
 export async function operatorOrgId(db: DB): Promise<string> {
   const [org] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.type, "operator")).limit(1);

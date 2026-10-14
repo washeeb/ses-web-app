@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { getInvoice } from "@/server/modules/invoices";
 import { balanceOf, isOverdue } from "@/server/modules/invoices";
-import type { CompanySettings } from "@/server/modules/settings";
+import { paymentMethods, type CompanySettings } from "@/server/modules/settings";
 import { Badge, DateTime, Money, StatusBadge } from "./ui";
 
 type InvoiceView = Awaited<ReturnType<typeof getInvoice>>;
@@ -98,11 +98,23 @@ export function InvoiceDocument({ inv, settings, orderHref, now }: { inv: Invoic
           Void <DateTime value={inv.voidedAt} dateOnly />{inv.voidReason ? ` — ${inv.voidReason}` : ""}. Nothing is owed on this invoice.
         </p>
       )}
-      {settings.paymentInstructions && inv.status !== "void" && inv.status !== "paid" && (
-        <div className="mt-6 rounded-lg bg-slate-50 p-4 text-sm">
+      {(paymentMethods(settings).length > 0 || settings.paymentInstructions) && inv.status !== "void" && inv.status !== "paid" && (
+        <div className="mt-6 rounded-lg bg-slate-50 p-4 text-sm print:break-inside-avoid">
           <h3 className="font-semibold">How to pay</h3>
-          <p className="mt-1 whitespace-pre-line text-slate-700">{settings.paymentInstructions}</p>
-          <p className="mt-1 text-slate-600">Please quote <strong>{inv.number}</strong> as the payment reference.</p>
+          <div className="mt-2 grid gap-4 sm:grid-cols-3">
+            {paymentMethods(settings).map((m) => (
+              <div key={m.label}>
+                <h4 className="font-semibold text-slate-800">{m.label}</h4>
+                <dl className="mt-1 text-slate-700">
+                  {m.lines.map(([k, v]) => (
+                    <div key={k}><dt className="inline">{k}: </dt><dd className="inline font-medium text-slate-900">{v}</dd></div>
+                  ))}
+                </dl>
+              </div>
+            ))}
+          </div>
+          {settings.paymentInstructions && <p className="mt-3 whitespace-pre-line text-slate-700">{settings.paymentInstructions}</p>}
+          <p className="mt-3 text-slate-600">Please quote <strong>{inv.number}</strong> as the payment reference.</p>
         </div>
       )}
       {inv.notes && <p className="mt-4 whitespace-pre-line text-sm text-slate-700">{inv.notes}</p>}

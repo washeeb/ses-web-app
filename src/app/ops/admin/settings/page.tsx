@@ -49,8 +49,29 @@ export default async function SettingsPage() {
                 <Field label="Business address" htmlFor="companyAddress"><input id="companyAddress" name="companyAddress" className="field" defaultValue={s.companyAddress} maxLength={300} /></Field>
                 <Field label="GRA taxpayer ID (TIN)" htmlFor="companyTin" hint="Printed on invoices once set."><input id="companyTin" name="companyTin" className="field" defaultValue={s.companyTin} maxLength={40} /></Field>
               </div>
+            </fieldset>
+            <fieldset className="rounded-lg border border-slate-200 p-3">
+              <legend className="px-1 text-sm font-semibold">Payment details</legend>
+              <p className="mb-3 text-xs text-slate-600">Shown on every unpaid invoice, in the customer portal and in printouts. Clear an account number to hide that method.</p>
+              <h3 className="mb-2 text-sm font-semibold text-slate-800">Bank transfer</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Bank" htmlFor="bankName"><input id="bankName" name="bankName" className="field" defaultValue={s.bankName} maxLength={80} /></Field>
+                <Field label="Branch" htmlFor="bankBranch"><input id="bankBranch" name="bankBranch" className="field" defaultValue={s.bankBranch} maxLength={80} /></Field>
+                <Field label="Account name" htmlFor="bankAccountName"><input id="bankAccountName" name="bankAccountName" className="field" defaultValue={s.bankAccountName} maxLength={120} /></Field>
+                <Field label="Account number" htmlFor="bankAccountNumber"><input id="bankAccountNumber" name="bankAccountNumber" className="field" defaultValue={s.bankAccountNumber} maxLength={40} /></Field>
+              </div>
+              <h3 className="mb-2 mt-4 text-sm font-semibold text-slate-800">MTN MoMo (merchant)</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="MoMo merchant name" htmlFor="momoMerchantName"><input id="momoMerchantName" name="momoMerchantName" className="field" defaultValue={s.momoMerchantName} maxLength={120} /></Field>
+                <Field label="MoMo merchant ID" htmlFor="momoMerchantId"><input id="momoMerchantId" name="momoMerchantId" className="field" defaultValue={s.momoMerchantId} maxLength={40} /></Field>
+              </div>
+              <h3 className="mb-2 mt-4 text-sm font-semibold text-slate-800">Telecel Cash (merchant)</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Telecel merchant name" htmlFor="telecelMerchantName"><input id="telecelMerchantName" name="telecelMerchantName" className="field" defaultValue={s.telecelMerchantName} maxLength={120} /></Field>
+                <Field label="Telecel till number" htmlFor="telecelTillNumber"><input id="telecelTillNumber" name="telecelTillNumber" className="field" defaultValue={s.telecelTillNumber} maxLength={40} /></Field>
+              </div>
               <div className="mt-4">
-                <Field label="Payment instructions" htmlFor="paymentInstructions" hint="Bank account or mobile money details shown on every invoice."><textarea id="paymentInstructions" name="paymentInstructions" rows={3} className="field" defaultValue={s.paymentInstructions} maxLength={1000} /></Field>
+                <Field label="Other payment notes" htmlFor="paymentInstructions" hint="Optional, shown under the accounts (for example cheque details)."><textarea id="paymentInstructions" name="paymentInstructions" rows={2} className="field" defaultValue={s.paymentInstructions} maxLength={1000} /></Field>
               </div>
             </fieldset>
             <fieldset className="rounded-lg border border-slate-200 p-3">

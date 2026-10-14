@@ -8,7 +8,7 @@ import { AppError } from "@/server/lib/errors";
 import { log } from "@/server/lib/log";
 import { getInvoice, OPEN_STATUSES, PAYMENT_METHOD_LABEL } from "@/server/modules/invoices";
 import { paystackConfig, verifyAndApplyPayment } from "@/server/modules/payments/paystack";
-import { getSettings } from "@/server/modules/settings";
+import { getSettings, paymentMethods } from "@/server/modules/settings";
 import { ActionForm } from "@/components/action-form";
 import { InvoiceDocument } from "@/components/invoice-document";
 import { PrintButton } from "@/components/print-button";
@@ -66,7 +66,7 @@ export default async function PortalInvoicePage({ params, searchParams }: { para
                   {cfg?.mode === "test" && <p className="text-xs font-semibold text-amber-700">Test mode — no real money is charged.</p>}
                 </ActionForm>
               ) : (
-                <p className="text-sm text-slate-600">{cfg ? "Your account cannot pay online. Ask your organisation's administrator." : settings.paymentInstructions ? "Online payment is not available yet. Use the payment details on the invoice." : `Online payment is not available yet. Contact ${settings.supportEmail} for payment details.`}</p>
+                <p className="text-sm text-slate-600">{cfg ? "Your account cannot pay online. Ask your organisation's administrator." : paymentMethods(settings).length > 0 || settings.paymentInstructions ? "Online payment is not available yet. Use the payment details on the invoice." : `Online payment is not available yet. Contact ${settings.supportEmail} for payment details.`}</p>
               )}
             </Card>
           )}
