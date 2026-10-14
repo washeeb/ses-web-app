@@ -64,33 +64,33 @@
   "categories": [
     {
       "slug": "networking",
-      "image": "networkingCat-light",
-      "alt": "Illustration of a router and a network switch"
+      "image": "3d-networking-light",
+      "alt": "3D illustration of a router and a network switch"
     },
     {
       "slug": "computing",
-      "image": "computingCat-light",
-      "alt": "Illustration of a laptop and a server rack"
+      "image": "3d-computing-light",
+      "alt": "3D illustration of a laptop and a server rack"
     },
     {
       "slug": "software",
-      "image": "softwareCat-light",
-      "alt": "Illustration of a business application and a software licence"
+      "image": "3d-software-light",
+      "alt": "3D illustration of a business application and a software licence"
     },
     {
       "slug": "managed-services",
-      "image": "managedCat-light",
-      "alt": "Illustration of monitoring screens"
+      "image": "3d-managed-light",
+      "alt": "3D illustration of monitoring screens"
     },
     {
       "slug": "professional-services",
-      "image": "professionalCat-light",
-      "alt": "Illustration of a checklist and a laptop"
+      "image": "3d-professional-light",
+      "alt": "3D illustration of a checklist and a laptop"
     },
     {
       "slug": "security",
-      "image": "securityCat-light",
-      "alt": "Illustration of a security shield, a camera and a padlock"
+      "image": "3d-security-light",
+      "alt": "3D illustration of a security shield, a camera and a padlock"
     }
   ],
   "slides": [
@@ -100,8 +100,8 @@
       "body": "Enterprise software, systems integration, cloud and networks, cybersecurity, hardware and data, delivered as one accountable partner.",
       "ctaLabel": "Request a consultation",
       "ctaHref": "/contact",
-      "alt": "Illustration of servers, a laptop dashboard, a security shield and a router",
-      "image": "hero-dark"
+      "alt": "3D illustration of servers, a laptop dashboard, a security shield and a router",
+      "image": "3d-hero-dark"
     },
     {
       "key": "integration",
@@ -109,8 +109,8 @@
       "body": "Custom software, APIs and systems integration that connect the applications you already run.",
       "ctaLabel": "Software & integration",
       "ctaHref": "/services#software-integration",
-      "alt": "Illustration of two code panels connected through APIs",
-      "image": "integration-dark"
+      "alt": "3D illustration of two code panels connected through APIs",
+      "image": "3d-integration-dark"
     },
     {
       "key": "security",
@@ -118,8 +118,8 @@
       "body": "Protection, backup and recovery planned around how your business actually works.",
       "ctaLabel": "Cybersecurity & continuity",
       "ctaHref": "/services#security-continuity",
-      "alt": "Illustration of a security shield, a server rack and backups",
-      "image": "security-dark"
+      "alt": "3D illustration of a security shield, a server rack and backups",
+      "image": "3d-security-dark"
     },
     {
       "key": "telecoms",
@@ -127,8 +127,8 @@
       "body": "Telecommunications and networks delivered with our telecom and ISP partners.",
       "ctaLabel": "Telecoms & networks",
       "ctaHref": "/services#telecoms-networks",
-      "alt": "Illustration of a telecom mast, a router, cabling and a laptop",
-      "image": "telecoms-dark"
+      "alt": "3D illustration of a telecom mast, a router, cabling and a laptop",
+      "image": "3d-telecoms-dark"
     },
     {
       "key": "hardware",
@@ -136,8 +136,33 @@
       "body": "Equipment and software licences priced in GHS, ordered online or through a quotation.",
       "ctaLabel": "Browse the store",
       "ctaHref": "/store",
-      "alt": "Illustration of a laptop, a server rack and a software licence",
-      "image": "hardware-dark"
+      "alt": "3D illustration of a laptop, a server rack and a software licence",
+      "image": "3d-hardware-dark"
     }
+  ],
+  "replaceable": [
+    "0f24f95509fc81ab4e35c6a16b953e48556f34f994d86c7dd1b6e73c5d21ec10",
+    "13d1f444d42b21f047de41d62413dfcfd9422867b3260972eb17f950fca1d545",
+    "18276720ca2b4d31169a2c08950963c73395d2bcd154020812fb63cd5b3c6210",
+    "1f0dbe33b0da84fd55005c834201b867ec49e0889c17225f921fa2eefa10f77b",
+    "54a32d2a86daf58ae91189ef3dec78bb3a391b018da121d5c8bf1d78ceace691",
+    "573193f48339790e1871859ecbefd2c4d6a8afad005e169146f9efdd41af8269",
+    "5af329faab8700d8c0af10fe7d46d763403ad449f69a88d7cda0c55bf5e80178",
+    "62adc22c3a59ea68783fa900907429d22d186143b7f7453802961f0210e496f2",
+    "630c5d8ea0332d4634975bc752a11b2ed189da2498599a790d6c89f090a1e7e6",
+    "64ca4ad71c264ff5cde556af70c0836376fe0427f4401157554a0808d0070101",
+    "6bf9329fc322276126568baac96f16812dec947eceef4290c59f2b7bf997aefb",
+    "76e01177b09f669cb5eb115dd296411b7e14a5f3ee8b0c193821a1e5dbdadbb1",
+    "8633b86e773e241e2e045e0b4f51f37ec09916c536ddce80bba5f7c2a9b40ccb",
+    "98484bc3e378fa38be388a5fb190ba6e03ec3034f72bf8b022d72b494770b49b",
+    "a81ceb6518e47d54ecd2daa2d5792cca1762846e331b348795b14051f7db7cdf",
+    "b7a417b005299b85712bcee2427bbacfda9c44900c1f98cb7522beffb7a7a7ac",
+    "b95c5eae40f72afa1665612553feeca8932de45ca12b34e0e5b736d9e3a326f9",
+    "ca4683cd068d727440c9cf973321f76c382c0053a2815dc53288957f62339ec7",
+    "ce230e2b6016d757f00a866c19aca2fa414a254fa256d9bc14c42b10b7856f1d",
+    "d4565be1823d6e43a20f258835dc97e8f31169fe2778111898d2e0b9b1b7afd1",
+    "d5743f9d29e0fc30e761dfcb5ef687f8a496b75da7ac256b00c6786fcd2c9f6a",
+    "d80cac0c37d692b0a06863dbe78309fcef1d2154c792faa980cae0803b031096",
+    "e313b97fe8bd3e1b77771fa5f1aace083e77a5a723295f4d9b0c4daf58388641"
   ]
 }

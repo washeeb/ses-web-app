@@ -15557,6 +15557,7 @@ async function loadActor(db2, userId, session) {
 }
 
 // src/server/modules/starter-images.ts
+import { createHash as createHash2 } from "node:crypto";
 import { readFile as readFile2 } from "node:fs/promises";
 import path4 from "node:path";
 
@@ -35450,6 +35451,18 @@ async function addImage(db2, actor2, ownerType, ownerId, set2) {
     throw err;
   }
 }
+async function getLive(db2, id2) {
+  const [m] = await db2.select().from(media).where(and(eq(media.id, id2), isNull(media.deletedAt)));
+  if (!m) throw notFound("Image not found.");
+  return m;
+}
+async function deleteImage(db2, actor2, id2) {
+  authorize(actor2, "catalogue.write");
+  const m = await getLive(db2, id2);
+  await db2.update(media).set({ deletedAt: /* @__PURE__ */ new Date() }).where(eq(media.id, id2));
+  await rm(path3.dirname(fileFor(id2, m.width, m.ext)), { recursive: true, force: true });
+  await audit(db2, { actor: actor2, action: "media.deleted", targetType: m.ownerType, targetId: m.ownerId, data: { mediaId: id2 } });
+}
 
 // src/server/modules/slides.ts
 var day = external_exports.union([external_exports.literal(""), external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date like 2026-12-01.")]);
@@ -35464,6 +35477,9 @@ var slideInput = external_exports.object({
   startsOn: day.optional().default(""),
   endsOn: day.optional().default("")
 }).refine((d) => !d.ctaLabel === !d.ctaHref, { message: "Give the button both a label and a link, or neither.", path: ["ctaHref"] }).refine((d) => !d.startsOn || !d.endsOn || d.startsOn <= d.endsOn, { message: "The end date is before the start date.", path: ["endsOn"] });
+async function listSlides(db2) {
+  return db2.select().from(slides).orderBy(asc(slides.sortOrder), asc(slides.createdAt));
+}
 async function saveSlide(db2, actor2, id2, input2) {
   authorize(actor2, "catalogue.write");
   const d = slideInput.parse(input2);
@@ -35492,15 +35508,25 @@ async function saveSlide(db2, actor2, id2, input2) {
 // src/server/modules/starter-images.ts
 async function installStarterImages(db2, actor2, dir2) {
   const manifest = JSON.parse(await readFile2(path4.join(dir2, "manifest.json"), "utf8"));
+  const replaceable = new Set(manifest.replaceable ?? []);
   const files = async (image) => {
     if (!/^[a-zA-Z0-9-]+$/.test(image)) throw new Error(`Bad image name in manifest: ${image}`);
     return Promise.all(MEDIA_WIDTHS.map(async (width) => ({ width, bytes: await readFile2(path4.join(dir2, image, `${width}.webp`)) })));
   };
-  const result = { added: [], skipped: [] };
+  const result = { added: [], updated: [], skipped: [] };
   const fill = async (type, ownerId, label, image, alt) => {
-    if ((await listMedia(db2, type, [ownerId])).length > 0) return result.skipped.push(`${label} (already has a picture)`);
-    await addImage(db2, actor2, type, ownerId, { files: await files(image), alt });
-    result.added.push(label);
+    const existing = await listMedia(db2, type, [ownerId]);
+    const copies = await files(image);
+    const sha = createHash2("sha256").update(copies[copies.length - 1].bytes).digest("hex");
+    if (existing.length === 0) {
+      await addImage(db2, actor2, type, ownerId, { files: copies, alt });
+      return result.added.push(label);
+    }
+    if (existing.some((m) => m.sha256 === sha)) return result.skipped.push(`${label} (already up to date)`);
+    if (!existing.every((m) => replaceable.has(m.sha256))) return result.skipped.push(`${label} (has its own picture)`);
+    for (const m of existing) await deleteImage(db2, actor2, m.id);
+    await addImage(db2, actor2, type, ownerId, { files: copies, alt });
+    result.updated.push(label);
   };
   for (const s of manifest.services) await fill("service", s.slug, `service ${s.slug}`, s.image, s.alt);
   for (const c of manifest.categories) {
@@ -35509,12 +35535,16 @@ async function installStarterImages(db2, actor2, dir2) {
     else await fill("category", cat.id, `category ${c.slug}`, c.image, c.alt);
   }
   const [{ n }] = await db2.select({ n: count() }).from(slides);
-  if (n > 0) result.skipped.push(`slides (${n} already set up)`);
-  else {
+  if (n === 0) {
     for (const [i, s] of manifest.slides.entries()) {
       const row = await saveSlide(db2, actor2, null, { headline: s.headline, body: s.body, ctaLabel: s.ctaLabel, ctaHref: s.ctaHref, active: true, sortOrder: i * 10 });
       await addImage(db2, actor2, "slide", row.id, { files: await files(s.image), alt: s.alt });
       result.added.push(`slide "${s.headline}"`);
+    }
+  } else {
+    for (const row of await listSlides(db2)) {
+      const s = manifest.slides.find((x) => x.ctaHref === row.ctaHref);
+      if (s) await fill("slide", row.id, `slide "${row.headline}"`, s.image, s.alt);
     }
   }
   return result;
@@ -35539,8 +35569,9 @@ if (!actor || !can(actor, "catalogue.write")) {
   await close();
   process.exit(1);
 }
-var { added, skipped } = await installStarterImages(db, actor, dir);
+var { added, updated, skipped } = await installStarterImages(db, actor, dir);
 await close();
 for (const a of added) console.log(`added    ${a}`);
+for (const u of updated) console.log(`updated  ${u}`);
 for (const s of skipped) console.log(`skipped  ${s}`);
-console.log(`${added.length} picture(s) added.`);
+console.log(`${added.length} picture(s) added, ${updated.length} starter picture(s) updated.`);
