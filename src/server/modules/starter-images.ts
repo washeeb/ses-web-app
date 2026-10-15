@@ -7,6 +7,17 @@ import { categories, slides } from "../db/schema";
 import type { Actor } from "../authz/policy";
 import { addImage, deleteImage, listMedia, MEDIA_WIDTHS, type OwnerType } from "./media";
 import { listSlides, saveSlide } from "./slides";
+import { saveCategory } from "./taxonomy";
+
+/** The store categories the starter pictures are made for. Created only on request, and only when missing. */
+export const STARTER_CATEGORIES = [
+  { slug: "networking", name: "Networking", skuCode: "NET", description: "Network equipment for offices, branches and campuses." },
+  { slug: "computing", name: "Computing & servers", skuCode: "CMP", description: "Laptops, desktops and servers." },
+  { slug: "software", name: "Software & licences", skuCode: "SWL", description: "Software licences and subscriptions." },
+  { slug: "managed-services", name: "Managed services", skuCode: "MGS", description: "Ongoing support and monitoring, billed as a service." },
+  { slug: "professional-services", name: "Professional services", skuCode: "PRO", description: "Fixed-scope consulting, assessment and implementation work." },
+  { slug: "security", name: "Security", skuCode: "SEC", description: "Security hardware, software and services." },
+];
 
 /**
  * Installs the starter pictures (built by `npm run images:build`) into the picture library. Safe to run again:
@@ -23,14 +34,22 @@ type Manifest = {
   replaceable?: string[];
 };
 
-export async function installStarterImages(db: DB, actor: Actor, dir: string) {
+export async function installStarterImages(db: DB, actor: Actor, dir: string, opts: { createCategories?: boolean } = {}) {
   const manifest = JSON.parse(await readFile(path.join(dir, "manifest.json"), "utf8")) as Manifest;
   const replaceable = new Set(manifest.replaceable ?? []);
   const files = async (image: string) => {
     if (!/^[a-zA-Z0-9-]+$/.test(image)) throw new Error(`Bad image name in manifest: ${image}`);
     return Promise.all(MEDIA_WIDTHS.map(async (width) => ({ width, bytes: await readFile(path.join(dir, image, `${width}.webp`)) })));
   };
-  const result = { added: [] as string[], updated: [] as string[], skipped: [] as string[] };
+  const result = { added: [] as string[], updated: [] as string[], skipped: [] as string[], created: [] as string[] };
+  if (opts.createCategories) {
+    for (const [i, c] of STARTER_CATEGORIES.entries()) {
+      const [hit] = await db.select({ id: categories.id }).from(categories).where(eq(categories.slug, c.slug));
+      if (hit) continue;
+      await saveCategory(db, actor, null, { ...c, active: true, sortOrder: i * 10 });
+      result.created.push(`category ${c.name}`);
+    }
+  }
   const fill = async (type: OwnerType, ownerId: string, label: string, image: string, alt: string) => {
     const existing = await listMedia(db, type, [ownerId]);
     const copies = await files(image);

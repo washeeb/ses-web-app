@@ -114,3 +114,21 @@ describe("starter pictures", () => {
     await rm(dir, { recursive: true, force: true });
   });
 });
+
+describe("starter categories", () => {
+  it("are created only when asked and only when missing, then get their pictures; existing ones are untouched", async () => {
+    const owner = await as("procurement@ses.demo");
+    // Pretend the live store has no "networking" category yet (the demo one keeps its row under another address).
+    await db.update(categories).set({ slug: "networking-old" }).where(eq(categories.slug, "networking"));
+    const without = await installStarterImages(db, owner, "assets/starter-images");
+    expect(without.created).toEqual([]);
+    expect(without.skipped).toContain("category networking (not found)");
+    const r = await installStarterImages(db, owner, "assets/starter-images", { createCategories: true });
+    expect(r.created).toEqual(["category Networking"]);
+    expect(r.added).toContain("category networking");
+    const [made] = await db.select().from(categories).where(eq(categories.slug, "networking"));
+    expect(made).toMatchObject({ name: "Networking", skuCode: "NET", active: true });
+    expect((await db.select().from(categories).where(eq(categories.slug, "networking-old"))).length).toBe(1);
+    expect((await installStarterImages(db, owner, "assets/starter-images", { createCategories: true })).created).toEqual([]);
+  });
+});
