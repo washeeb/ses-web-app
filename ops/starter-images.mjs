@@ -13738,6 +13738,7 @@ var AppError = class extends Error {
 var forbidden = (msg = "You do not have permission to do that.") => new AppError("forbidden", msg);
 var notFound = (msg = "Not found.") => new AppError("not_found", msg);
 var invalid = (msg) => new AppError("validation", msg);
+var conflict = (msg) => new AppError("conflict", msg);
 
 // src/server/authz/permissions.ts
 var op = (label, privileged = false) => ({ domain: "operator", label, privileged });
@@ -35505,15 +35506,83 @@ async function saveSlide(db2, actor2, id2, input2) {
   });
 }
 
+// src/server/lib/slug.ts
+var slugify2 = (s) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
+
+// src/server/modules/taxonomy.ts
+var categoryInput = external_exports.object({
+  name: external_exports.string().trim().min(2).max(80),
+  slug: external_exports.string().trim().max(80).optional().default(""),
+  description: external_exports.string().trim().max(1e3).optional().default(""),
+  parentId: external_exports.string().uuid().nullable().optional(),
+  skuCode: external_exports.union([external_exports.literal(""), external_exports.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, "SKU code: three letters, e.g. NET.")]).optional().default(""),
+  active: external_exports.boolean().default(true),
+  sortOrder: external_exports.number().int().min(0).max(1e3).default(0)
+});
+async function uniqueSlug(db2, table, base2, exceptId) {
+  const root = slugify2(base2) || "item";
+  for (let i = 1; i < 50; i++) {
+    const slug = i === 1 ? root : `${root}-${i}`;
+    const [hit] = await db2.select({ id: table.id }).from(table).where(eq(table.slug, slug));
+    if (!hit || hit.id === exceptId) return slug;
+  }
+  throw conflict("Choose a more distinctive name.");
+}
+async function saveCategory(db2, actor2, id2, input2) {
+  authorize(actor2, "catalogue.write");
+  const d = categoryInput.parse(input2);
+  return db2.transaction(async (tx) => {
+    const before = id2 ? (await tx.select().from(categories).where(eq(categories.id, id2)))[0] : void 0;
+    if (id2 && !before) throw notFound("Category not found.");
+    if (d.parentId) {
+      if (d.parentId === id2) throw invalid("A category cannot be inside itself.");
+      const [parent] = await tx.select().from(categories).where(eq(categories.id, d.parentId));
+      if (!parent) throw invalid("Unknown parent category.");
+      if (parent.parentId) throw invalid("Sub-categories go one level deep: choose a top-level parent.");
+      if (id2) {
+        const [child] = await tx.select({ id: categories.id }).from(categories).where(eq(categories.parentId, id2)).limit(1);
+        if (child) throw invalid("This category has sub-categories, so it must stay top-level.");
+      }
+    }
+    const slug = await uniqueSlug(tx, categories, d.slug || d.name, id2 ?? void 0);
+    const values = { name: d.name, slug, description: d.description || null, parentId: d.parentId ?? null, skuCode: d.skuCode || null, active: d.active, sortOrder: d.sortOrder };
+    const [row] = id2 ? await tx.update(categories).set(values).where(eq(categories.id, id2)).returning() : await tx.insert(categories).values(values).returning();
+    await audit(tx, { actor: actor2, action: id2 ? "category.updated" : "category.created", targetType: "category", targetId: row.id, data: { before, after: values } });
+    return row;
+  });
+}
+var brandInput = external_exports.object({
+  name: external_exports.string().trim().min(1).max(80),
+  description: external_exports.string().trim().max(1e3).optional().default(""),
+  website: external_exports.union([external_exports.literal(""), external_exports.string().trim().url().max(200)]).optional().default(""),
+  active: external_exports.boolean().default(true)
+});
+
 // src/server/modules/starter-images.ts
-async function installStarterImages(db2, actor2, dir2) {
+var STARTER_CATEGORIES = [
+  { slug: "networking", name: "Networking", skuCode: "NET", description: "Network equipment for offices, branches and campuses." },
+  { slug: "computing", name: "Computing & servers", skuCode: "CMP", description: "Laptops, desktops and servers." },
+  { slug: "software", name: "Software & licences", skuCode: "SWL", description: "Software licences and subscriptions." },
+  { slug: "managed-services", name: "Managed services", skuCode: "MGS", description: "Ongoing support and monitoring, billed as a service." },
+  { slug: "professional-services", name: "Professional services", skuCode: "PRO", description: "Fixed-scope consulting, assessment and implementation work." },
+  { slug: "security", name: "Security", skuCode: "SEC", description: "Security hardware, software and services." }
+];
+async function installStarterImages(db2, actor2, dir2, opts = {}) {
   const manifest = JSON.parse(await readFile2(path4.join(dir2, "manifest.json"), "utf8"));
   const replaceable = new Set(manifest.replaceable ?? []);
   const files = async (image) => {
     if (!/^[a-zA-Z0-9-]+$/.test(image)) throw new Error(`Bad image name in manifest: ${image}`);
     return Promise.all(MEDIA_WIDTHS.map(async (width) => ({ width, bytes: await readFile2(path4.join(dir2, image, `${width}.webp`)) })));
   };
-  const result = { added: [], updated: [], skipped: [] };
+  const result = { added: [], updated: [], skipped: [], created: [] };
+  if (opts.createCategories) {
+    for (const [i, c] of STARTER_CATEGORIES.entries()) {
+      const [hit] = await db2.select({ id: categories.id }).from(categories).where(eq(categories.slug, c.slug));
+      if (hit) continue;
+      await saveCategory(db2, actor2, null, { ...c, active: true, sortOrder: i * 10 });
+      result.created.push(`category ${c.name}`);
+    }
+  }
   const fill = async (type, ownerId, label, image, alt) => {
     const existing = await listMedia(db2, type, [ownerId]);
     const copies = await files(image);
@@ -35569,8 +35638,9 @@ if (!actor || !can(actor, "catalogue.write")) {
   await close();
   process.exit(1);
 }
-var { added, updated, skipped } = await installStarterImages(db, actor, dir);
+var { added, updated, skipped, created } = await installStarterImages(db, actor, dir, { createCategories: process.argv.includes("--create-categories") });
 await close();
+for (const c of created) console.log(`created  ${c}`);
 for (const a of added) console.log(`added    ${a}`);
 for (const u of updated) console.log(`updated  ${u}`);
 for (const s of skipped) console.log(`skipped  ${s}`);
