@@ -1,6 +1,6 @@
 var R=require("../../../chunks/ssr/[turbopack]_runtime.js")("server/app/ops/notifications/page.js")
-R.c("server/chunks/ssr/[root-of-the-server]__1x4l9bjsz0rq-._.js")
-R.c("server/chunks/ssr/node_modules_next_dist_esm_build_templates_app-page_0ejkk6hp-ghbp.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0lh9fkyfyz_qa._.js")
+R.c("server/chunks/ssr/node_modules_next_dist_esm_build_templates_app-page_1e6vquskl-98-.js")
 R.c("server/chunks/ssr/node_modules_next_dist_0joxsz2q5dh6c._.js")
 R.c("server/chunks/ssr/node_modules_next_dist_0janj0i6dqko7._.js")
 R.c("server/chunks/ssr/[root-of-the-server]__0-43bkul252ly._.js")
@@ -29,5 +29,5 @@ R.c("server/chunks/ssr/src_components_ui_tsx_1ph0b_8sjd0ld._.js")
 R.c("server/chunks/ssr/node_modules_next_dist_0d9dhskk8yi5v._.js")
 R.c("server/chunks/ssr/src_app_ops_error_tsx_0vies6jo_kray._.js")
 R.c("server/chunks/ssr/_next-internal_server_app_ops_notifications_page_actions_1hi5_urcp3dki.js")
-R.m(791)
-module.exports=R.m(791).exports
+R.m(28346)
+module.exports=R.m(28346).exports

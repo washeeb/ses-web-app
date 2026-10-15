@@ -1,6 +1,6 @@
 var R=require("../../../../chunks/ssr/[turbopack]_runtime.js")("server/app/portal/projects/[id]/page.js")
-R.c("server/chunks/ssr/[root-of-the-server]__1onr7g2yf3yck._.js")
-R.c("server/chunks/ssr/node_modules_next_dist_esm_build_templates_app-page_1yj6mmnxhrx1s.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0eudtqbl7275d._.js")
+R.c("server/chunks/ssr/node_modules_next_dist_esm_build_templates_app-page_1jeceumz63ls0.js")
 R.c("server/chunks/ssr/node_modules_next_dist_0joxsz2q5dh6c._.js")
 R.c("server/chunks/ssr/node_modules_next_dist_0janj0i6dqko7._.js")
 R.c("server/chunks/ssr/src_app_portal_projects_[id]_page_tsx_18bclkr799_se._.js")
@@ -37,5 +37,5 @@ R.c("server/chunks/ssr/node_modules_zod_v4_classic_external_1dg2g31t6utxr.js")
 R.c("server/chunks/ssr/src_server_modules_subscriptions_ts_0d8uugbrhmq-8._.js")
 R.c("server/chunks/ssr/src_server_modules_tickets_ts_0v34ug2hcowup._.js")
 R.c("server/chunks/ssr/src_server_modules_14h3jpcqzpuvx._.js")
-R.m(72631)
-module.exports=R.m(72631).exports
+R.m(83194)
+module.exports=R.m(83194).exports

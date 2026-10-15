@@ -5,7 +5,7 @@
       "routeType": "page",
       "response": "complete",
       "compute": "static",
-      "htmlSize": 8891,
+      "htmlSize": 9189,
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -51,6 +51,38 @@
       ],
       "initialRevalidateSeconds": false,
       "srcRoute": "/apple-icon.png",
+      "dataRoute": null,
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/favicon.ico": {
+      "initialHeaders": {
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-type": "image/x-icon",
+        "x-next-cache-tags": "_N_T_/layout,_N_T_/favicon.ico/layout,_N_T_/favicon.ico/route,_N_T_/favicon.ico"
+      },
+      "routeType": "route",
+      "response": "complete",
+      "compute": "static",
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/favicon.ico",
       "dataRoute": null,
       "allowHeader": [
         "host",
@@ -129,8 +161,8 @@
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "7c39dc4567bb2d8b84b825766b940d98",
-    "previewModeSigningKey": "fc2b7201ad0a0ff3c985c7cf44694f209319daa8c5c05a522a8229ec89f09357",
-    "previewModeEncryptionKey": "7a34ba324c03487995141d3efc14cdfe382d1bba8ee6df53bcb4c00c2bdfaaf3"
+    "previewModeId": "0e26862326f75d1128e870f564908684",
+    "previewModeSigningKey": "5ebdfdd1107ac793172c7b38d62de5ae76a27912c104539eea1262a32e20faf2",
+    "previewModeEncryptionKey": "457bc26654a93573e0629f0002103a5851cee56ed15c7735bd60ddfa62d8c9fc"
   }
 }

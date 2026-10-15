@@ -32,6 +32,7 @@
   "/api/webhooks/paystack/route": "app/api/webhooks/paystack/route.js",
   "/apple-icon.png/route": "app/apple-icon.png/route.js",
   "/dev/mailbox/page": "app/dev/mailbox/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
   "/icon.png/route": "app/icon.png/route.js",
   "/media/[id]/[file]/route": "app/media/[id]/[file]/route.js",
   "/opengraph-image.png/route": "app/opengraph-image.png/route.js",

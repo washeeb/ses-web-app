@@ -1,6 +1,6 @@
 var R=require("../../../../../chunks/ssr/[turbopack]_runtime.js")("server/app/ops/inventory/transfers/[id]/page.js")
-R.c("server/chunks/ssr/[root-of-the-server]__0mueqy6552_oe._.js")
-R.c("server/chunks/ssr/node_modules_next_dist_esm_build_templates_app-page_0kdd1984jzmbh.js")
+R.c("server/chunks/ssr/[root-of-the-server]__15b1n3vui3unt._.js")
+R.c("server/chunks/ssr/node_modules_next_dist_esm_build_templates_app-page_0iba16t6_caru.js")
 R.c("server/chunks/ssr/node_modules_next_dist_0joxsz2q5dh6c._.js")
 R.c("server/chunks/ssr/node_modules_next_dist_0janj0i6dqko7._.js")
 R.c("server/chunks/ssr/src_app_ops_inventory_transfers_[id]_page_tsx_0rwu3qzjb6lij._.js")
@@ -36,5 +36,5 @@ R.c("server/chunks/ssr/node_modules_zod_v4_classic_external_1dg2g31t6utxr.js")
 R.c("server/chunks/ssr/src_server_modules_inventory_ts_1ahh7whmrh2o6._.js")
 R.c("server/chunks/ssr/src_server_modules_procurement_ts_19i-ezodx_1w1._.js")
 R.c("server/chunks/ssr/_14gato9vxfo11._.js")
-R.m(86699)
-module.exports=R.m(86699).exports
+R.m(41745)
+module.exports=R.m(41745).exports
