@@ -1,7 +1,7 @@
 // Generates web-ready brand assets from the master files in /logo. Re-run after replacing a master:
 //   npm run brand:build
 import sharp from "sharp";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 const SRC = "logo";
 const OUT = "src/assets/brand";
@@ -33,7 +33,30 @@ const square = async (size, pad, background) => {
   const art = await sharp(mark).resize({ width: inner, height: inner, fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } }).toBuffer();
   return sharp({ create: { width: size, height: size, channels: 4, background } }).composite([{ input: art, gravity: "center" }]).png();
 };
-await (await square(512, 0.06, { r: 0, g: 0, b: 0, alpha: 0 })).toFile("src/app/icon.png");
+// Browser tab: the mark on a white rounded tile, so it reads on light and dark tab bars alike.
+const roundedWhite = async (size, pad) => {
+  const tile = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="${size}" height="${size}" rx="${size * 0.22}" fill="#fff"/></svg>`);
+  const art = await (await square(size, pad, { r: 0, g: 0, b: 0, alpha: 0 })).toBuffer();
+  return sharp(tile).composite([{ input: art }]).png({ compressionLevel: 9 });
+};
+await (await roundedWhite(512, 0.1)).toFile("src/app/icon.png");
+// Older browsers: the same tile as favicon.ico (PNG-in-ICO, 16/32/48).
+const sizes = [16, 32, 48];
+const ico = await Promise.all(sizes.map(async (n) => (await roundedWhite(n, 0.1)).toBuffer()));
+const head = Buffer.alloc(6 + 16 * ico.length);
+head.writeUInt16LE(1, 2);
+head.writeUInt16LE(ico.length, 4);
+let offset = head.length;
+ico.forEach((png, i) => {
+  const e = 6 + i * 16;
+  head[e] = head[e + 1] = sizes[i];
+  head.writeUInt16LE(1, e + 4);
+  head.writeUInt16LE(32, e + 6);
+  head.writeUInt32LE(png.length, e + 8);
+  head.writeUInt32LE(offset, e + 12);
+  offset += png.length;
+});
+writeFileSync("src/app/favicon.ico", Buffer.concat([head, ...ico]));
 await (await square(180, 0.1, { r: 255, g: 255, b: 255, alpha: 1 })).toFile("src/app/apple-icon.png");
 
 // Social sharing image (1200x630): reverse logo centred on brand navy.
