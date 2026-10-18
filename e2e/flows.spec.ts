@@ -5,10 +5,37 @@ import { STATE } from "./auth.setup";
 test("visitor can send an enquiry and gets a reference", async ({ page }) => {
   await page.goto("/contact");
   await page.getByLabel("Your name").fill("E2E Visitor");
-  await page.getByLabel("E-mail").fill("e2e.visitor@example.com");
+  await page.getByLabel("E-mail", { exact: true }).fill("e2e.visitor@example.com");
   await page.getByLabel("How can we help?").fill("Automated test enquiry about network monitoring.");
   await page.getByRole("button", { name: "Send enquiry" }).click();
   await expect(page.getByRole("status")).toContainText(/reference is L-\d{4}-\d{5}/);
+});
+
+test("visitor opens a service page and books a call from it", async ({ page }) => {
+  await page.goto("/services");
+  await page.getByRole("link", { name: "Managed security monitoring" }).click();
+  await page.waitForURL(/\/services\/managed-soc$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Managed security monitoring" })).toBeVisible();
+  await expect(page.getByText("Proposed")).toHaveCount(0);
+  await page.getByRole("link", { name: "Enquire or book a call" }).click();
+  await expect(page.getByLabel("Area of interest")).toHaveValue("Managed security monitoring");
+  await page.getByLabel("Your name").fill("E2E Caller");
+  await page.getByLabel("E-mail", { exact: true }).fill("e2e.caller@example.com");
+  await page.getByLabel("How can we help?").fill("We would like monitoring for our firewall and servers.");
+  const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  await page.getByLabel("Day").fill(tomorrow);
+  await page.getByLabel("Time").selectOption("afternoon");
+  await page.getByRole("button", { name: "Send enquiry" }).click();
+  // A booked call needs a phone number.
+  await expect(page.getByRole("alert").filter({ hasText: "phone number" })).toBeVisible();
+  await page.getByLabel("Your name").fill("E2E Caller");
+  await page.getByLabel("E-mail", { exact: true }).fill("e2e.caller@example.com");
+  await page.getByLabel("Phone or WhatsApp").fill("0241234567");
+  await page.getByLabel("How can we help?").fill("We would like monitoring for our firewall and servers.");
+  await page.getByLabel("Day").fill(tomorrow);
+  await page.getByLabel("Time").selectOption("afternoon");
+  await page.getByRole("button", { name: "Send enquiry" }).click();
+  await expect(page.getByRole("status")).toContainText(new RegExp(`We will call you on ${tomorrow}`));
 });
 
 test("keyboard users can reach the main content and navigation", async ({ page }) => {

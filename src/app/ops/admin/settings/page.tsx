@@ -36,7 +36,8 @@ export default async function SettingsPage() {
               <Field label="Return window after delivery (days)" htmlFor="returnWindowDays"><input id="returnWindowDays" name="returnWindowDays" type="number" min={0} className="field" defaultValue={s.returnWindowDays} /></Field>
               <Field label="Stock hold after acceptance (hours)" htmlFor="reservationHoldHours"><input id="reservationHoldHours" name="reservationHoldHours" type="number" className="field" defaultValue={s.reservationHoldHours} /></Field>
               <Field label="Support e-mail" htmlFor="supportEmail"><input id="supportEmail" name="supportEmail" type="email" className="field" defaultValue={s.supportEmail} /></Field>
-              <Field label="Support phone" htmlFor="supportPhone"><input id="supportPhone" name="supportPhone" className="field" defaultValue={s.supportPhone} /></Field>
+              <Field label="Support phone" htmlFor="supportPhone" hint="Shown on invoices and the website."><input id="supportPhone" name="supportPhone" className="field" defaultValue={s.supportPhone} /></Field>
+              <Field label="WhatsApp number" htmlFor="whatsappNumber" hint="Website chat button and links. Leave empty to hide them."><input id="whatsappNumber" name="whatsappNumber" type="tel" className="field" defaultValue={s.whatsappNumber} placeholder="0241234567" /></Field>
               <Field label="Store order limit (GHS)" htmlFor="storeOrderLimit" hint="Carts at or above this total must go through a quotation."><input id="storeOrderLimit" name="storeOrderLimit" className="field" defaultValue={(s.storeOrderLimitMinor / 100).toFixed(2)} /></Field>
               <Field label="Invoice payment terms (days)" htmlFor="invoiceDueDays"><input id="invoiceDueDays" name="invoiceDueDays" type="number" min={0} className="field" defaultValue={s.invoiceDueDays} /></Field>
               <Field label="Renewal notice before period end (days)" htmlFor="renewalNoticeDays" hint="The renewal invoice is issued then."><input id="renewalNoticeDays" name="renewalNoticeDays" type="number" min={1} max={90} className="field" defaultValue={s.renewalNoticeDays} /></Field>
@@ -81,6 +82,7 @@ export default async function SettingsPage() {
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="aiEnabled" defaultChecked={s.aiEnabled} /> Turn on AI assistance</label>
+                <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="publicAssistant" defaultChecked={s.publicAssistant} /> Website assistant for visitors: answers questions from the website&apos;s own pages and hands over to the sales team (visitor messages are sent to the AI provider with contact details removed)</label>
                 <Field label="Requests per person per day" htmlFor="aiDailyLimitPerUser"><input id="aiDailyLimitPerUser" name="aiDailyLimitPerUser" type="number" min={0} max={500} className="field" defaultValue={s.aiDailyLimitPerUser} /></Field>
               </div>
             </fieldset>

@@ -19,6 +19,10 @@ export default function CaseStudiesPage() {
               <h2 className="mt-2 text-xl font-semibold">{c.title}</h2>
               <p className="mt-2 text-xs text-slate-500">{c.services.join(" · ")}</p>
               <p className="mt-3 inline-block rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">Example engagement</p>
+              <p className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                <Link href={`/contact?service=${c.serviceSlug}&message=${encodeURIComponent(`We have a similar need: ${c.title}.`)}`} className="font-semibold text-teal-700 hover:underline">Discuss a similar project →</Link>
+                <Link href={`/services/${c.serviceSlug}`} className="text-slate-700 hover:underline">About the service</Link>
+              </p>
             </div>
             <dl className="mt-4 space-y-3 text-sm md:mt-0">
               <div>

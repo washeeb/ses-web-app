@@ -5,7 +5,7 @@ import { liveSlides } from "@/server/modules/slides";
 import { HeroSlider } from "@/components/hero-slider";
 
 export default async function HomePage() {
-  const core = SERVICE_AREAS.filter((s) => s.status === "available");
+  const core = SERVICE_AREAS;
   const slides = await liveSlides(getDb());
   return (
     <>
@@ -91,10 +91,13 @@ export default async function HomePage() {
           {core.map((s) => (
             <article
               key={s.slug}
-              className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+              className="group relative rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
             >
               <h3 className="text-lg font-semibold text-slate-900">
-                {s.title}
+                {/* The whole card is clickable through this link's stretched overlay. */}
+                <Link href={`/services/${s.slug}`} className="after:absolute after:inset-0 group-hover:text-teal-700">
+                  {s.title}
+                </Link>
               </h3>
               <p className="mt-2 text-sm text-slate-600">{s.summary}</p>
               <ul className="mt-4 flex flex-wrap gap-1.5">

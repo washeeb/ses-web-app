@@ -189,3 +189,10 @@ main dd a:not(.btn) {
 .slider-btn:hover {
   background: rgb(255 255 255 / 0.12);
 }
+
+/* Phones: a page with the sticky contact bar already offers WhatsApp, so the floating button steps aside. */
+@media (max-width: 767px) {
+  body:has(.sticky-contact-bar) .floating-whatsapp {
+    display: none;
+  }
+}

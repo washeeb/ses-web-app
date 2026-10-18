@@ -33,16 +33,37 @@ import { createAssetsForOrder } from "./assets";
 
 // ───────────────────────────── Enquiries & leads ─────────────────────────────
 
-export const enquiryInput = z.object({
-  contactName: z.string().trim().min(2, "Enter your name.").max(120),
-  email: z.string().trim().toLowerCase().email("Enter a valid e-mail address.").max(200),
-  phone: z.string().trim().max(40).optional().default(""),
-  companyName: z.string().trim().max(160).optional().default(""),
-  serviceInterest: z.string().trim().max(120).optional().default(""),
-  message: z.string().trim().min(10, "Tell us a little more (at least 10 characters).").max(4000),
-  /** Honeypot: real users never fill this in. */
-  website: z.string().max(0).optional().default(""),
-});
+export const CALLBACK_WINDOWS = { morning: "Morning (8am–12pm)", afternoon: "Afternoon (12pm–4pm)", evening: "Evening (4pm–7pm)" } as const;
+export const CONTACT_METHODS = { email: "E-mail reply", phone: "Phone call", whatsapp: "WhatsApp message" } as const;
+
+/** Ghana uses GMT all year, so the UTC date is the local date. */
+const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+
+export const enquiryInput = z
+  .object({
+    contactName: z.string().trim().min(2, "Enter your name.").max(120),
+    email: z.string().trim().toLowerCase().email("Enter a valid e-mail address.").max(200),
+    phone: z.string().trim().max(40).optional().default(""),
+    companyName: z.string().trim().max(160).optional().default(""),
+    serviceInterest: z.string().trim().max(120).optional().default(""),
+    message: z.string().trim().min(10, "Tell us a little more (at least 10 characters).").max(4000),
+    preferredContact: z.union([z.literal(""), z.enum(["email", "phone", "whatsapp"])]).optional().default(""),
+    /** "Book a call": a day within the next 60 days and a part of the day. */
+    callbackOn: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a day for the call.")]).optional().default(""),
+    callbackWindow: z.union([z.literal(""), z.enum(["morning", "afternoon", "evening"])]).optional().default(""),
+    /** Honeypot: real users never fill this in. */
+    website: z.string().max(0).optional().default(""),
+  })
+  .superRefine((d, ctx) => {
+    const needsPhone = d.preferredContact === "phone" || d.preferredContact === "whatsapp" || d.callbackOn !== "";
+    if (needsPhone && d.phone.replace(/\D/g, "").length < 9) ctx.addIssue({ code: "custom", path: ["phone"], message: "Add a phone number so we can call or message you." });
+    if (d.callbackOn) {
+      const today = isoDay(new Date());
+      const last = isoDay(new Date(Date.now() + 60 * 86_400_000));
+      if (d.callbackOn < today || d.callbackOn > last) ctx.addIssue({ code: "custom", path: ["callbackOn"], message: "Choose a day from today up to 60 days ahead." });
+      if (!d.callbackWindow) ctx.addIssue({ code: "custom", path: ["callbackWindow"], message: "Choose a time for the call." });
+    }
+  });
 
 export async function createEnquiry(db: DB, input: z.input<typeof enquiryInput>, ip: string | null) {
   const data = enquiryInput.parse(input);
@@ -64,14 +85,21 @@ export async function createEnquiry(db: DB, input: z.input<typeof enquiryInput>,
         companyName: data.companyName || null,
         serviceInterest: data.serviceInterest || null,
         message: data.message,
+        preferredContact: data.callbackOn ? "phone" : data.preferredContact || null,
+        callbackOn: data.callbackOn || null,
+        callbackWindow: data.callbackOn ? data.callbackWindow : null,
         departmentId: salesDept?.id ?? null,
       })
       .returning();
     await audit(tx, { action: "lead.created", targetType: "lead", targetId: row!.id, ip, data: { source: "website" } });
+    // Sales staff see new website enquiries straight away; a booked call says when to call.
+    const when = row!.callbackOn ? ` · call ${row!.callbackOn}${row!.callbackWindow ? `, ${CALLBACK_WINDOWS[row!.callbackWindow as keyof typeof CALLBACK_WINDOWS].toLowerCase()}` : ""}` : "";
+    await notifyPermission(tx, "leads.write", { title: `${row!.callbackOn ? "Call booked" : "New enquiry"}: ${row!.contactName}`, body: `${row!.serviceInterest ?? "General enquiry"}${when}`, link: "/ops/leads" });
     return row!;
   });
   publish({ topic: "leads" });
-  return { number: lead.number };
+  announce();
+  return { number: lead.number, callbackOn: lead.callbackOn, callbackLabel: lead.callbackWindow ? CALLBACK_WINDOWS[lead.callbackWindow as keyof typeof CALLBACK_WINDOWS] : "" };
 }
 
 function deptCondition(actor: Actor, perm: Parameters<typeof departmentFilter>[1], column: typeof leads.departmentId | typeof quotes.departmentId) {

@@ -53,7 +53,12 @@ export const settingsSchema = z.object({
   aiEnabled: z.boolean(),
   aiDailyLimitPerUser: z.number().int().min(0).max(500),
   supportEmail: z.string().email(),
-  supportPhone: z.string().max(40),
+  /** Shown on invoices and the website once set. */
+  supportPhone: z.string().trim().max(40),
+  /** WhatsApp number for the website chat button and links (e.g. 0241234567 or +233 24 123 4567); empty hides them. */
+  whatsappNumber: z.string().trim().max(40).regex(/^$|^\+?[0-9 ()-]{9,20}$/, "Enter a phone number, e.g. 0241234567."),
+  /** Website AI assistant for visitors; also needs the AI provider key on the server. */
+  publicAssistant: z.boolean(),
   /** Monday e-mail summary of the past week to staff who can read reports. */
   weeklyReport: z.boolean(),
   /** Data Protection Commission (Ghana) registration — shown publicly once set. */
@@ -95,7 +100,9 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   aiEnabled: false,
   aiDailyLimitPerUser: 20,
   supportEmail: "support@synclyticsenterprisesystems.com",
-  supportPhone: "+233 00 000 0000",
+  supportPhone: "",
+  whatsappNumber: "",
+  publicAssistant: false,
   weeklyReport: true,
   dpcRegistrationNumber: "",
   dpcRegistrationExpires: "",

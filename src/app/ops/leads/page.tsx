@@ -1,6 +1,6 @@
 import { getDb } from "@/server/db/client";
 import { requireActor } from "@/server/web/session";
-import { LEAD_STATUSES, listLeads } from "@/server/modules/sales";
+import { CALLBACK_WINDOWS, CONTACT_METHODS, LEAD_STATUSES, listLeads } from "@/server/modules/sales";
 import { can } from "@/server/authz/policy";
 import { listDepartments } from "@/server/modules/admin";
 import { ActionForm } from "@/components/action-form";
@@ -42,7 +42,9 @@ export default async function LeadsPage() {
                     </td>
                     <td>
                       <p>{l.contactName}</p>
-                      <p className="text-xs text-slate-500">{l.companyName ?? "—"} · <a className="hover:underline" href={`mailto:${l.email}`}>{l.email}</a></p>
+                      <p className="text-xs text-slate-500">{l.companyName ?? "—"} · <a className="hover:underline" href={`mailto:${l.email}`}>{l.email}</a>{l.phone && <> · <a className="hover:underline" href={`tel:${l.phone.replace(/[^+\d]/g, "")}`}>{l.phone}</a></>}</p>
+                      {l.preferredContact && <p className="text-xs text-slate-600">Prefers {CONTACT_METHODS[l.preferredContact as keyof typeof CONTACT_METHODS]?.toLowerCase() ?? l.preferredContact}</p>}
+                      {l.callbackOn && <Badge tone="blue">Call {l.callbackOn}{l.callbackWindow ? `, ${CALLBACK_WINDOWS[l.callbackWindow as keyof typeof CALLBACK_WINDOWS]?.toLowerCase() ?? l.callbackWindow}` : ""}</Badge>}
                     </td>
                     <td className="max-w-xs">
                       <p>{l.serviceInterest ?? "—"}</p>

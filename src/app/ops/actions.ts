@@ -506,6 +506,8 @@ export async function updateSettingsAction(_: Prev, fd: FormData) {
       telecelTillNumber: str(fd, "telecelTillNumber"),
       supportEmail: str(fd, "supportEmail"),
       supportPhone: str(fd, "supportPhone"),
+      whatsappNumber: str(fd, "whatsappNumber"),
+      publicAssistant: bool(fd, "publicAssistant"),
       weeklyReport: bool(fd, "weeklyReport"),
       dpcRegistrationNumber: str(fd, "dpcRegistrationNumber"),
       dpcRegistrationExpires: str(fd, "dpcRegistrationExpires"),

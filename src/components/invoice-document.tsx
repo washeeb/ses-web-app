@@ -16,7 +16,7 @@ export function InvoiceDocument({ inv, settings, orderHref, now }: { inv: Invoic
         <div>
           <p className="text-lg font-bold text-slate-900">{settings.companyName}</p>
           {settings.companyAddress && <p className="text-sm text-slate-600">{settings.companyAddress}</p>}
-          <p className="text-sm text-slate-600">{settings.supportEmail} · {settings.supportPhone}</p>
+          <p className="text-sm text-slate-600">{[settings.supportEmail, settings.supportPhone].filter(Boolean).join(" · ")}</p>
           {settings.companyTin && <p className="text-sm text-slate-600">TIN {settings.companyTin}</p>}
         </div>
         <div className="text-right">

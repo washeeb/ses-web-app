@@ -16,10 +16,15 @@ export async function submitEnquiry(_prev: ActionState, fd: FormData): Promise<A
         companyName: str(fd, "companyName"),
         serviceInterest: str(fd, "serviceInterest"),
         message: str(fd, "message"),
+        preferredContact: str(fd, "preferredContact") as "" | "email" | "phone" | "whatsapp",
+        callbackOn: str(fd, "callbackOn"),
+        callbackWindow: str(fd, "callbackWindow") as "" | "morning" | "afternoon" | "evening",
         website: str(fd, "website"),
       },
       await clientIp(),
     );
-    return `Thank you. Your reference is ${r.number}. A specialist will contact you within one business day.`;
+    return r.callbackOn
+      ? `Thank you. Your reference is ${r.number}. We will call you on ${r.callbackOn} (${r.callbackLabel}).`
+      : `Thank you. Your reference is ${r.number}. A specialist will contact you within one business day.`;
   });
 }
