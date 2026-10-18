@@ -7,9 +7,9 @@ globalThis.__BUILD_MANIFEST = {
     "static/chunks/0cz1d0mv5g_q7.js"
   ],
   "lowPriorityFiles": [
-    "static/BEA8H1LSw5U63mjQQ6XYh/_buildManifest.js",
-    "static/BEA8H1LSw5U63mjQQ6XYh/_ssgManifest.js",
-    "static/BEA8H1LSw5U63mjQQ6XYh/_clientMiddlewareManifest.js"
+    "static/o48Db7PjDkvuQFDEzjZWF/_buildManifest.js",
+    "static/o48Db7PjDkvuQFDEzjZWF/_ssgManifest.js",
+    "static/o48Db7PjDkvuQFDEzjZWF/_clientMiddlewareManifest.js"
   ],
   "rootMainFiles": [
     "static/chunks/1ckvzn7sfprko.js",
@@ -175,6 +175,17 @@ globalThis.__BUILD_MANIFEST = {
       ]
     },
     "/(site)/services/page": {
+      "otherChunks": [
+        "static/chunks/1ckvzn7sfprko.js",
+        "static/chunks/2gs9k2bmz4jgn.js",
+        "static/chunks/0s7mvllxht1mo.js",
+        "static/chunks/2ki02i4k8p407.js"
+      ],
+      "runtimeModuleIds": [
+        94553
+      ]
+    },
+    "/(site)/services/[slug]/page": {
       "otherChunks": [
         "static/chunks/1ckvzn7sfprko.js",
         "static/chunks/2gs9k2bmz4jgn.js",

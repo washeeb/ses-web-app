@@ -12929,6 +12929,11 @@ var leads = pgTable("leads", {
   companyName: text("company_name"),
   serviceInterest: text("service_interest"),
   message: text("message"),
+  /** How the visitor wants to be contacted: email | phone | whatsapp. */
+  preferredContact: text("preferred_contact"),
+  /** Requested call-back day (YYYY-MM-DD) and part of the day (morning | afternoon | evening), from "Book a call". */
+  callbackOn: text("callback_on"),
+  callbackWindow: text("callback_window"),
   status: text("status").notNull().default("new"),
   ownerUserId: uuid("owner_user_id").references(() => users.id),
   departmentId: uuid("department_id").references(() => departments.id),
@@ -13674,7 +13679,8 @@ var aiRequests = pgTable(
   "ai_requests",
   {
     id: id(),
-    userId: uuid("user_id").notNull().references(() => users.id),
+    /** Empty for the public website assistant (visitors have no account). */
+    userId: uuid("user_id").references(() => users.id),
     feature: text("feature").notNull(),
     subjectType: text("subject_type"),
     subjectId: text("subject_id"),

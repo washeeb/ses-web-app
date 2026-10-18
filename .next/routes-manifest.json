@@ -341,6 +341,14 @@
       "namedRegex": "^/portal/support/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/services/[slug]",
+      "regex": "^/services/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPslug": "nxtPslug"
+      },
+      "namedRegex": "^/services/(?<nxtPslug>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/store/[slug]",
       "regex": "^/store/([^/]+?)(?:/)?$",
       "routeKeys": {

@@ -11,6 +11,7 @@
   "/(site)/page": "app/(site)/page.js",
   "/(site)/partners/page": "app/(site)/partners/page.js",
   "/(site)/privacy/page": "app/(site)/privacy/page.js",
+  "/(site)/services/[slug]/page": "app/(site)/services/[slug]/page.js",
   "/(site)/services/page": "app/(site)/services/page.js",
   "/(site)/store/[slug]/page": "app/(site)/store/[slug]/page.js",
   "/(site)/store/cart/page": "app/(site)/store/cart/page.js",

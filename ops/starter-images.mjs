@@ -12937,6 +12937,11 @@ var leads = pgTable("leads", {
   companyName: text("company_name"),
   serviceInterest: text("service_interest"),
   message: text("message"),
+  /** How the visitor wants to be contacted: email | phone | whatsapp. */
+  preferredContact: text("preferred_contact"),
+  /** Requested call-back day (YYYY-MM-DD) and part of the day (morning | afternoon | evening), from "Book a call". */
+  callbackOn: text("callback_on"),
+  callbackWindow: text("callback_window"),
   status: text("status").notNull().default("new"),
   ownerUserId: uuid("owner_user_id").references(() => users.id),
   departmentId: uuid("department_id").references(() => departments.id),
@@ -13682,7 +13687,8 @@ var aiRequests = pgTable(
   "ai_requests",
   {
     id: id(),
-    userId: uuid("user_id").notNull().references(() => users.id),
+    /** Empty for the public website assistant (visitors have no account). */
+    userId: uuid("user_id").references(() => users.id),
     feature: text("feature").notNull(),
     subjectType: text("subject_type"),
     subjectId: text("subject_id"),
@@ -35286,7 +35292,12 @@ var settingsSchema = external_exports.object({
   aiEnabled: external_exports.boolean(),
   aiDailyLimitPerUser: external_exports.number().int().min(0).max(500),
   supportEmail: external_exports.string().email(),
-  supportPhone: external_exports.string().max(40),
+  /** Shown on invoices and the website once set. */
+  supportPhone: external_exports.string().trim().max(40),
+  /** WhatsApp number for the website chat button and links (e.g. 0241234567 or +233 24 123 4567); empty hides them. */
+  whatsappNumber: external_exports.string().trim().max(40).regex(/^$|^\+?[0-9 ()-]{9,20}$/, "Enter a phone number, e.g. 0241234567."),
+  /** Website AI assistant for visitors; also needs the AI provider key on the server. */
+  publicAssistant: external_exports.boolean(),
   /** Monday e-mail summary of the past week to staff who can read reports. */
   weeklyReport: external_exports.boolean(),
   /** Data Protection Commission (Ghana) registration — shown publicly once set. */

@@ -1,4 +1,15 @@
 {
-  "node": {},
+  "node": {
+    "408b2d3c38737a9a07a31875c8b789f67e7b3e9184": {
+      "workers": {
+        "app/(site)/case-studies/page": {
+          "moduleId": 94247,
+          "async": true
+        }
+      },
+      "exportedName": "askAssistantAction",
+      "filename": "src/app/(site)/assistant-actions.ts"
+    }
+  },
   "edge": {}
 }

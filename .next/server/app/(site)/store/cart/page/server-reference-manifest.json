@@ -1,39 +1,49 @@
 {
   "node": {
-    "600b4b45d21b539ca53879247065d619f3e9274efb": {
+    "408b2d3c38737a9a07a31875c8b789f67e7b3e9184": {
       "workers": {
         "app/(site)/store/cart/page": {
-          "moduleId": 56723,
+          "moduleId": 64433,
           "async": true
         }
       },
-      "exportedName": "addToCartAction",
-      "filename": "src/app/(site)/store/cart-actions.ts"
+      "exportedName": "askAssistantAction",
+      "filename": "src/app/(site)/assistant-actions.ts"
     },
-    "60223d6380d73de6d3129d72a076d26a83b74ad135": {
+    "60634094a1f4c30c71f6b0c183a12133a37b55f609": {
       "workers": {
         "app/(site)/store/cart/page": {
-          "moduleId": 56723,
-          "async": true
-        }
-      },
-      "exportedName": "cartQuoteAction",
-      "filename": "src/app/(site)/store/cart-actions.ts"
-    },
-    "6041a637a995e418c445a44302d8aeb58dd45d0366": {
-      "workers": {
-        "app/(site)/store/cart/page": {
-          "moduleId": 56723,
+          "moduleId": 64433,
           "async": true
         }
       },
       "exportedName": "updateCartLineAction",
       "filename": "src/app/(site)/store/cart-actions.ts"
     },
-    "60768175690594fded2e576da6718422af71db4783": {
+    "60806226c3e04aa54cebeb6eb4fc90129635eea9df": {
       "workers": {
         "app/(site)/store/cart/page": {
-          "moduleId": 56723,
+          "moduleId": 64433,
+          "async": true
+        }
+      },
+      "exportedName": "cartQuoteAction",
+      "filename": "src/app/(site)/store/cart-actions.ts"
+    },
+    "6087a4a67bc45b4da320a80361c6eee72c4b921900": {
+      "workers": {
+        "app/(site)/store/cart/page": {
+          "moduleId": 64433,
+          "async": true
+        }
+      },
+      "exportedName": "addToCartAction",
+      "filename": "src/app/(site)/store/cart-actions.ts"
+    },
+    "609d3e5dc42ab7c674b6ff37a696f9931a1d9d02be": {
+      "workers": {
+        "app/(site)/store/cart/page": {
+          "moduleId": 64433,
           "async": true
         }
       },
