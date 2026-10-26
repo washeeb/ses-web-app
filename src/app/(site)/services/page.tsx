@@ -22,12 +22,12 @@ export default async function ServicesPage() {
         {SERVICE_AREAS.map((s) => {
           const img = images.get(s.slug);
           return (
-            <li key={s.slug} id={s.slug} className="group relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
-              {img && <Picture m={img} sizes="(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw" fallbackWidth={800} className="aspect-[3/2] w-full object-cover" alt="" />}
+            <li key={s.slug} id={s.slug} className="lift reveal group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              {img && <div className="overflow-hidden"><Picture m={img} sizes="(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw" fallbackWidth={800} className="zoom aspect-[3/2] w-full object-cover" alt="" /></div>}
               <div className="flex flex-1 flex-col p-5">
                 <h2 className="text-lg font-semibold text-slate-900">
                   {/* The whole card is clickable through this link's stretched overlay. */}
-                  <Link href={`/services/${s.slug}`} className="after:absolute after:inset-0 group-hover:text-teal-700">
+                  <Link href={`/services/${s.slug}`} className="plain after:absolute after:inset-0 group-hover:text-teal-700">
                     {s.title}
                   </Link>
                 </h2>

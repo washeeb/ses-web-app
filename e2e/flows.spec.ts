@@ -87,7 +87,7 @@ test("visitor fills a cart and sends it as a quotation request", async ({ page }
   await page.getByLabel(/^Quantity of Core i5/).fill("3");
   await page.getByRole("button", { name: /Add to cart.*Core i5/ }).click();
   await expect(page.getByRole("status")).toContainText("Added to your cart");
-  await expect(page.getByRole("link", { name: "Cart (3)" }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Cart (3 items)" }).first()).toBeVisible();
   await page.goto("/store/cart");
   await expect(page.getByText("GHS 45,000.00")).toBeVisible(); // 3 × 12,500 + 20% taxes
   await page.getByLabel("Your name").fill("E2E Cart Visitor");

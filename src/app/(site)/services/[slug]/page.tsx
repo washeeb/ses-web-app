@@ -104,7 +104,7 @@ export default async function ServicePage({ params }: { params: Promise<{ slug: 
               <h2 id="how" className="text-xl font-semibold text-slate-900">How we work</h2>
               <ol className="mt-4 grid gap-4 sm:grid-cols-2">
                 {HOW_WE_WORK.map((h, i) => (
-                  <li key={h.title} className="rounded-xl border border-slate-200 bg-white p-4">
+                  <li key={h.title} className="reveal rounded-xl border border-slate-200 bg-white p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">Step {i + 1}</p>
                     <h3 className="mt-1 font-semibold text-slate-900">{h.title}</h3>
                     <p className="mt-1 text-sm text-slate-600">{h.text}</p>

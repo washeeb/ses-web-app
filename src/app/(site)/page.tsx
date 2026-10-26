@@ -91,11 +91,11 @@ export default async function HomePage() {
           {core.map((s) => (
             <article
               key={s.slug}
-              className="group relative rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+              className="lift reveal group relative rounded-2xl border border-slate-200 bg-white p-6"
             >
               <h3 className="text-lg font-semibold text-slate-900">
                 {/* The whole card is clickable through this link's stretched overlay. */}
-                <Link href={`/services/${s.slug}`} className="after:absolute after:inset-0 group-hover:text-teal-700">
+                <Link href={`/services/${s.slug}`} className="plain after:absolute after:inset-0 group-hover:text-teal-700">
                   {s.title}
                 </Link>
               </h3>

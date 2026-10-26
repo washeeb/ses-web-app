@@ -86,9 +86,11 @@ async function attachVariants(db: DB, productIds: string[], now = new Date()) {
 
 export type StoreSort = "name" | "price-asc" | "price-desc" | "newest";
 
-/** Public catalogue: active products, filtered by type, search, category (with its sub-categories), brand or tag. */
-export async function listStoreProducts(db: DB, filter: { type?: string; q?: string; category?: string; brand?: string; tag?: string; sort?: StoreSort } = {}) {
-  const conds = [eq(products.status, "active")];
+type StoreFilter = { type?: string; q?: string; category?: string; brand?: string; tag?: string; sort?: StoreSort };
+
+/** SQL conditions for the public store: active products with at least one active option, plus the filters. */
+async function storeConditions(db: DB, filter: StoreFilter) {
+  const conds = [eq(products.status, "active"), sql`exists (select 1 from ${productVariants} v where v.product_id = ${products.id} and v.active)`];
   if (filter.type && (PRODUCT_TYPES as readonly string[]).includes(filter.type)) conds.push(eq(products.type, filter.type as ProductType));
   if (filter.q) {
     const q = `%${filter.q.replace(/[%_\\]/g, "\\$&").slice(0, 80)}%`;
@@ -108,22 +110,60 @@ export async function listStoreProducts(db: DB, filter: { type?: string; q?: str
     const tagged = db.select({ id: productTags.productId }).from(productTags).innerJoin(tags, eq(tags.id, productTags.tagId)).where(eq(tags.slug, filter.tag));
     conds.push(inArray(products.id, tagged));
   }
-  const rows = await db
+  return and(...conds);
+}
+
+function storeOrder(sort: StoreSort | undefined) {
+  const minPrice = sql`(select min(v.price_minor) from ${productVariants} v where v.product_id = ${products.id} and v.active)`;
+  if (sort === "price-asc") return [sql`${minPrice} asc nulls last`, asc(products.name)];
+  if (sort === "price-desc") return [sql`${minPrice} desc nulls last`, asc(products.name)];
+  if (sort === "newest") return [desc(products.createdAt), asc(products.name)];
+  return [asc(products.name)];
+}
+
+async function storeRows(db: DB, where: Awaited<ReturnType<typeof storeConditions>>, sort: StoreSort | undefined, page?: { limit: number; offset: number }) {
+  const query = db
     .select({ product: products, categoryName: categories.name, categorySlug: categories.slug, brandName: brands.name, brandSlug: brands.slug })
     .from(products)
     .leftJoin(categories, eq(categories.id, products.categoryId))
     .leftJoin(brands, eq(brands.id, products.brandId))
-    .where(and(...conds))
-    .orderBy(filter.sort === "newest" ? desc(products.createdAt) : asc(products.name));
+    .where(where)
+    .orderBy(...storeOrder(sort));
+  const rows = page ? await query.limit(page.limit).offset(page.offset) : await query;
   const ids = rows.map((r) => r.product.id);
   const [variants, images] = await Promise.all([attachVariants(db, ids), mainImages(db, "product", ids)]);
-  const list = rows
+  return rows
     .map((r) => ({ ...r.product, categoryName: r.categoryName, categorySlug: r.categorySlug, brandName: r.brandName, brandSlug: r.brandSlug, image: images.get(r.product.id) ?? null, variants: variants.get(r.product.id) ?? [] }))
     .filter((p) => p.variants.length > 0);
-  if (filter.sort === "price-asc") list.sort((a, b) => a.variants[0]!.priceMinor - b.variants[0]!.priceMinor);
-  if (filter.sort === "price-desc") list.sort((a, b) => b.variants[0]!.priceMinor - a.variants[0]!.priceMinor);
-  return list;
 }
+
+/** Public store, all matching products. */
+export async function listStoreProducts(db: DB, filter: StoreFilter = {}) {
+  return storeRows(db, await storeConditions(db, filter), filter.sort);
+}
+
+export const STORE_PAGE_SIZE = 24;
+
+/** One page of the public store, with the total for pagination. Only that page's prices, stock and pictures are loaded. */
+export async function searchStoreProducts(db: DB, filter: StoreFilter & { page?: number } = {}, perPage = STORE_PAGE_SIZE) {
+  const where = await storeConditions(db, filter);
+  const [{ n }] = (await db.select({ n: sql<number>`count(*)::int` }).from(products).leftJoin(brands, eq(brands.id, products.brandId)).where(where)) as [{ n: number }];
+  const pages = Math.max(1, Math.ceil(n / perPage));
+  const page = Math.min(Math.max(1, Math.floor(filter.page ?? 1)), pages);
+  const items = await storeRows(db, where, filter.sort, { limit: perPage, offset: (page - 1) * perPage });
+  return { items, total: n, page, pages, perPage };
+}
+
+/** Products on sale per category (active, with an active option), for the store's category counts. */
+export async function storeCategoryCounts(db: DB) {
+  const rows = await db
+    .select({ id: products.categoryId, n: sql<number>`count(*)::int` })
+    .from(products)
+    .where(and(eq(products.status, "active"), sql`exists (select 1 from ${productVariants} v where v.product_id = ${products.id} and v.active)`))
+    .groupBy(products.categoryId);
+  return new Map(rows.filter((r) => r.id).map((r) => [r.id!, r.n]));
+}
+
 
 export async function getStoreProduct(db: DB, slug: string) {
   const [row] = await db
