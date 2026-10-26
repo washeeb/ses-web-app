@@ -1,6 +1,6 @@
 {
   "node": {
-    "408b2d3c38737a9a07a31875c8b789f67e7b3e9184": {
+    "40c92e5a5612b976bd7f4a07102d8e731fce357144": {
       "workers": {
         "app/(site)/services/[slug]/page": {
           "moduleId": 27950,
@@ -10,7 +10,7 @@
       "exportedName": "askAssistantAction",
       "filename": "src/app/(site)/assistant-actions.ts"
     },
-    "60e903591473b6e05d9b5130fe4245b7f40a77aa39": {
+    "60a39889ea26ab80224d36b9a69377a3bb1ec2bfb4": {
       "workers": {
         "app/(site)/services/[slug]/page": {
           "moduleId": 27950,

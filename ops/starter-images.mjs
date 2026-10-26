@@ -9044,13 +9044,13 @@ var PgDialect = class {
     const columnNames = Object.keys(tableColumns).filter(
       (colName) => set2[colName] !== void 0 || tableColumns[colName]?.onUpdateFn !== void 0
     );
-    const setSize = columnNames.length;
+    const setSize2 = columnNames.length;
     return sql.join(columnNames.flatMap((colName, i) => {
       const col = tableColumns[colName];
       const onUpdateFnResult = col.onUpdateFn?.();
       const value = set2[colName] ?? (is(onUpdateFnResult, SQL) ? onUpdateFnResult : sql.param(onUpdateFnResult, col));
       const res = sql`${sql.identifier(this.casing.getColumnCasing(col))} = ${value}`;
-      if (i < setSize - 1) {
+      if (i < setSize2 - 1) {
         return [res, sql.raw(", ")];
       }
       return [res];
@@ -14016,7 +14016,17 @@ var toASCII = function(input2) {
 
 // node_modules/nodemailer/dist/esm/shared/url.js
 var SLASHLESS_AUTHORITY = /^([a-zA-Z][a-zA-Z0-9+.-]*:)(?!\/\/)([\s\S]+)$/;
-var SURROUNDING_WHITESPACE = /^[\x00-\x20]+|[\x00-\x20]+$/g;
+function stripSurroundingWhitespace(input2) {
+  let start = 0;
+  let end = input2.length;
+  while (start < end && input2.charCodeAt(start) <= 32) {
+    start++;
+  }
+  while (end > start && input2.charCodeAt(end - 1) <= 32) {
+    end--;
+  }
+  return input2.slice(start, end);
+}
 var LEGACY_TRIM = /^[\x00-\x20\u00a0\ufeff]+/;
 var AUTHORITY = /^([a-zA-Z0-9+.-]+:)?[\\/]{2}([^\\/?#]*)/;
 var FORBIDDEN_HOST_CHARS = /[\x00-\x20#/:<>?@[\\\]^|\x7f]/;
@@ -14070,7 +14080,7 @@ function normalizeHostname(raw, href) {
   return mapped;
 }
 var parse = (input2, parseQueryString) => {
-  input2 = (input2 || "").replace(SURROUNDING_WHITESPACE, "");
+  input2 = stripSurroundingWhitespace(input2 || "");
   const slashless = SLASHLESS_AUTHORITY.exec(input2);
   const normalized2 = slashless ? slashless[1] + "//" + slashless[2] : input2;
   let u;
@@ -14354,7 +14364,7 @@ var Cookies = class {
 var cookies_default = Cookies;
 
 // node_modules/nodemailer/dist/esm/package-info.js
-var version2 = "10.1.0";
+var version2 = "10.2.1";
 
 // node_modules/nodemailer/dist/esm/fetch/index.js
 import net3 from "node:net";
@@ -14370,6 +14380,7 @@ var isProtoKey = (key) => key === "__proto__";
 // node_modules/nodemailer/dist/esm/fetch/index.js
 var MAX_REDIRECTS = 5;
 var DEFAULT_TIMEOUT = 60 * 1e3;
+var DEFAULT_MAX_TIME = 2 * 60 * 1e3;
 var DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 var TLS_OPTION_KEYS = [
   "ALPNProtocols",
@@ -14411,12 +14422,19 @@ function parseFetchUrl(url2) {
   }
   return parsed;
 }
+function fetchPort(parsed) {
+  return parsed.port ? Number(parsed.port) : parsed.protocol === "https:" ? 443 : 80;
+}
 function nmfetch(url2, options) {
   options = options || {};
   options.fetchRes = options.fetchRes || new PassThrough();
   options.cookies = options.cookies || new cookies_default();
   options.redirects = options.redirects || 0;
   options.maxRedirects = isNaN(options.maxRedirects) ? MAX_REDIRECTS : options.maxRedirects;
+  if (!options.deadline) {
+    options.maxTime = typeof options.maxTime === "number" && options.maxTime >= 0 ? options.maxTime : DEFAULT_MAX_TIME;
+    options.deadline = options.maxTime ? Date.now() + options.maxTime : 0;
+  }
   const fetchRes = options.fetchRes;
   const parsed = parseFetchUrl(url2);
   if (!parsed) {
@@ -14507,7 +14525,7 @@ function nmfetch(url2, options) {
     method,
     host: parsed.hostname,
     path: parsed.path,
-    port: parsed.port ? parsed.port : parsed.protocol === "https:" ? 443 : 80,
+    port: fetchPort(parsed),
     headers,
     // Validate TLS certificates by default. Callers that genuinely need to
     // reach a self-signed/internal host opt out explicitly with
@@ -14536,11 +14554,19 @@ function nmfetch(url2, options) {
     });
     return fetchRes;
   }
+  let deadlineTimer;
+  const clearDeadline = () => {
+    if (deadlineTimer) {
+      clearTimeout(deadlineTimer);
+      deadlineTimer = void 0;
+    }
+  };
   const fail = (err, sourceUrl = url2) => {
     if (finished) {
       return;
     }
     finished = true;
+    clearDeadline();
     setFetchCode(err);
     err.sourceUrl = sourceUrl;
     fetchRes.emit("error", err);
@@ -14550,8 +14576,13 @@ function nmfetch(url2, options) {
   if (timeout) {
     req.setTimeout(timeout, () => fail(new Error("Request Timeout")));
   }
+  if (options.deadline) {
+    deadlineTimer = setTimeout(() => fail(new Error("Request exceeded the allowed " + options.maxTime + " ms")), Math.max(options.deadline - Date.now(), 1));
+    deadlineTimer.unref();
+  }
   req.on("error", (err) => fail(err));
   fetchRes.once("close", () => {
+    clearDeadline();
     if (finished || fetchRes.readableEnded) {
       return;
     }
@@ -14591,17 +14622,17 @@ function nmfetch(url2, options) {
       if (!redirectParsed) {
         return fail(new Error("Unsupported protocol for URL " + redirectUrl), redirectUrl);
       }
-      const crossHost = redirectParsed.hostname !== parsed.hostname;
-      const downgrade = parsed.protocol === "https:" && redirectParsed.protocol === "http:";
-      if (options.headers && (crossHost || downgrade)) {
+      const crossOrigin = redirectParsed.protocol !== parsed.protocol || redirectParsed.hostname !== parsed.hostname || fetchPort(redirectParsed) !== fetchPort(parsed);
+      if (options.headers && crossOrigin) {
         const sensitive = ["authorization", "cookie", "proxy-authorization"];
         Object.keys(options.headers).forEach((key) => {
-          if (sensitive.includes(key.toLowerCase())) {
+          if (sensitive.includes(key.toLowerCase().trim())) {
             delete options.headers[key];
           }
         });
       }
       finished = true;
+      clearDeadline();
       res.resume();
       req.abort();
       return nmfetch(redirectUrl, options);
@@ -14612,6 +14643,7 @@ function nmfetch(url2, options) {
       return fail(new Error("Invalid status code " + res.statusCode));
     }
     res.on("error", (err) => fail(err));
+    res.once("end", () => clearDeadline());
     const maxBytes = typeof options.maxBytes === "number" && options.maxBytes > 0 ? options.maxBytes : DEFAULT_MAX_BYTES;
     const source = inflate || res;
     let received = 0;
@@ -14647,6 +14679,7 @@ function nmfetch(url2, options) {
 }
 nmfetch.Cookies = cookies_default;
 nmfetch.DEFAULT_TIMEOUT = DEFAULT_TIMEOUT;
+nmfetch.DEFAULT_MAX_TIME = DEFAULT_MAX_TIME;
 
 // node_modules/nodemailer/dist/esm/shared/index.js
 var DNS_TTL = 5 * 60 * 1e3;
@@ -15188,6 +15221,13 @@ var services = {
     "host": "smtp.office365.com",
     "port": 587,
     "secure": false
+  },
+  "Oveyon": {
+    "description": "Oveyon",
+    "host": "smtp.oveyon.com",
+    "port": 587,
+    "secure": false,
+    "requireTLS": true
   },
   "Postmark": {
     "description": "Postmark",
@@ -16227,6 +16267,7 @@ __export(util_exports, {
   required: () => required,
   safeExtend: () => safeExtend,
   shallowClone: () => shallowClone,
+  sizeCaps: () => sizeCaps,
   slugify: () => slugify,
   stringifyPrimitive: () => stringifyPrimitive,
   toZod: () => toZod,
@@ -16745,6 +16786,18 @@ function prefixIssues(path5, issues) {
 }
 function unwrapMessage(message) {
   return typeof message === "string" ? message : message?.message;
+}
+function sizeCaps(defChecks) {
+  const caps = [];
+  for (const ch of defChecks ?? []) {
+    const d = ch._zod.def;
+    if (!/_(length|size)$|_equals$/.test(d.check))
+      break;
+    const max = d.maximum ?? d.length ?? d.size;
+    if (max >= 0)
+      caps.push([max, ch]);
+  }
+  return caps;
 }
 function attachSchema(issues, start, inst) {
   var _a3;
@@ -18166,7 +18219,7 @@ ${content.join("\n")}
 var version3 = {
   major: 4,
   minor: 6,
-  patch: 5
+  patch: 7
 };
 
 // node_modules/zod/v4/core/schemas.js
@@ -18922,6 +18975,31 @@ var $ZodDate = /* @__PURE__ */ $constructor("$ZodDate", (inst, def) => {
     return payload;
   };
 });
+function capSize(inst, size) {
+  const caps = sizeCaps(inst._zod.def.checks);
+  if (!caps.length)
+    return;
+  const cap = Math.min(...caps.map((c) => c[0]));
+  const parse4 = inst._zod.parse;
+  inst._zod.parse = (payload, ctx) => {
+    const n = size(payload.value);
+    if (n > cap && !ctx?.skipChecks && ctx?.direction !== "backward") {
+      for (const [max, ch] of sizeCaps(inst._zod.def.checks)) {
+        if (n > max && ch._zod.def.when(payload)) {
+          const start = payload.issues.length;
+          ch._zod.check(payload);
+          payload.issues[start].continue = false;
+          attachSchema(payload.issues, start, inst);
+          return payload;
+        }
+      }
+    }
+    return parse4(payload, ctx);
+  };
+}
+var arraySize = (input2) => Array.isArray(input2) ? input2.length : -1;
+var mapSize = (input2) => input2 instanceof Map ? input2.size : -1;
+var setSize = (input2) => input2 instanceof Set ? input2.size : -1;
 function handleArrayResult(result, final, index2) {
   if (result.issues.length) {
     final.issues.push(...prefixIssues(index2, result.issues));
@@ -18965,6 +19043,7 @@ var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
     }
     return payload;
   };
+  capSize(inst, arraySize);
 });
 function handlePropertyResult(result, final, key, input2, optin, optout) {
   const isPresent = key in input2;
@@ -19921,6 +20000,7 @@ var $ZodMap = /* @__PURE__ */ $constructor("$ZodMap", (inst, def) => {
       return Promise.all(proms).then(() => payload);
     return payload;
   };
+  capSize(inst, mapSize);
 });
 function handleMapResult(keyResult, valueResult, final, key, input2, inst, ctx) {
   if (keyResult.issues.length) {
@@ -19987,6 +20067,7 @@ var $ZodSet = /* @__PURE__ */ $constructor("$ZodSet", (inst, def) => {
       return Promise.all(proms).then(() => payload);
     return payload;
   };
+  capSize(inst, setSize);
 });
 function handleSetResult(result, final) {
   if (result.issues.length) {
@@ -29517,9 +29598,15 @@ function generateNullableCheck(doc, ctx, schema, accessor, buildsValue = true) {
   doc.write(`}`);
   return outputVar;
 }
+function generateSizeGate(doc, schema, size) {
+  for (const [max, check3] of sizeCaps(schema._zod.def.checks)) {
+    doc.write(`if (${size} > ${numericOperand(max, check3._zod.def.check)}) return INVALID;`);
+  }
+}
 function generateArrayCheck(doc, ctx, schema, accessor, buildsValue = true) {
   const def = schema._zod.def;
   doc.write(`if (!Array.isArray(${accessor})) return INVALID;`);
+  generateSizeGate(doc, schema, `${accessor}.length`);
   const outputVar = buildsValue ? newVar(ctx) : null;
   const iVar = newVar(ctx);
   const elemVar = newVar(ctx);
@@ -29919,6 +30006,7 @@ function literalPropertyKey(ctx, key) {
 function generateMapCheck(doc, ctx, schema, accessor) {
   const def = schema._zod.def;
   doc.write(`if (!(${accessor} instanceof Map)) return INVALID;`);
+  generateSizeGate(doc, schema, `${accessor}.size`);
   const outputVar = newVar(ctx);
   const kVar = newVar(ctx);
   const valVar = newVar(ctx);
@@ -29935,6 +30023,7 @@ function generateMapCheck(doc, ctx, schema, accessor) {
 function generateSetCheck(doc, ctx, schema, accessor) {
   const def = schema._zod.def;
   doc.write(`if (!(${accessor} instanceof Set)) return INVALID;`);
+  generateSizeGate(doc, schema, `${accessor}.size`);
   const outputVar = newVar(ctx);
   const valVar = newVar(ctx);
   doc.write(`const ${outputVar} = new Set();`);
