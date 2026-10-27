@@ -32,6 +32,9 @@ else
   cp -an "$OLD_STATIC/." "$APP/.next/static/"
   rm -rf "$OLD_STATIC"
 fi
+# Clean-up of earlier builds: files of THIS build are marked fresh first (unchanged files such as the logo keep the
+# date they were first checked out, and must never count as "old"), then anything older than two weeks goes.
+(cd "$SRC/.next/static" && find . -type f -print0 | (cd "$APP/.next/static" && xargs -0 -r touch)) 2>/dev/null || true
 find "$APP/.next/static" -type f -mtime +14 -delete 2>/dev/null || true
 
 # Node.js chosen in "Setup Node.js App" lives in a CloudLinux virtual environment; use the newest.
