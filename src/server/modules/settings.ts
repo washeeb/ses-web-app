@@ -88,8 +88,8 @@ export const DEFAULT_SETTINGS: CompanySettings = {
   // From the Synclytics payment information (2026-10-14).
   bankName: "Absa Bank",
   bankAccountName: "Synclytics Enterprise",
-  bankAccountNumber: "0141159100",
-  bankBranch: "Ring Road Central",
+  bankAccountNumber: "0341182786",
+  bankBranch: "Tarkwa",
   momoMerchantName: "Synclytics Enterprise",
   momoMerchantId: "328018",
   telecelMerchantName: "Synclytics Enterprise",
