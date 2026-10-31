@@ -1,6 +1,6 @@
 {
   "node": {
-    "007f6fb5b6340aa0cbaee066daa9b5f272623825b4": {
+    "00202ba75eedd892e63485945d9410a53973c5ac53": {
       "workers": {
         "app/ops/catalogue/categories/page": {
           "moduleId": 74491,
@@ -10,27 +10,7 @@
       "exportedName": "logout",
       "filename": "src/app/(auth)/actions.ts"
     },
-    "6004c46fcfdecdc659468cc8bcbda33516a5c5f21f": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "verifyMfaAction",
-      "filename": "src/app/(auth)/actions.ts"
-    },
-    "601131658a7dac882a6e819d540e62da14f8b746ae": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "forgotPassword",
-      "filename": "src/app/(auth)/actions.ts"
-    },
-    "604625d20a03793a45d30fe799d1030627c0b9ed57": {
+    "6007fdbdedc52a29cc9379ad39a8282d2e0e1b3d7c": {
       "workers": {
         "app/ops/catalogue/categories/page": {
           "moduleId": 74491,
@@ -40,7 +20,17 @@
       "exportedName": "login",
       "filename": "src/app/(auth)/actions.ts"
     },
-    "606ec82a9a040204bb58eb1e88f5d3470cc9df6dfd": {
+    "60999758607725afd89a2cf6da068d667b86f9800f": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "forgotPassword",
+      "filename": "src/app/(auth)/actions.ts"
+    },
+    "60a6eec7e55ed89139bc6307a20ffc85bff7fccb37": {
       "workers": {
         "app/ops/catalogue/categories/page": {
           "moduleId": 74491,
@@ -50,7 +40,17 @@
       "exportedName": "confirmEnrollmentAction",
       "filename": "src/app/(auth)/actions.ts"
     },
-    "60aa8d4df48c47f45a4b1f47c63222068779d04f83": {
+    "60aeba2df6e51c794e5ace8a8673de36e5f6171105": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "verifyMfaAction",
+      "filename": "src/app/(auth)/actions.ts"
+    },
+    "60eade0a0e5959f5d981498b455e26920363ce68d7": {
       "workers": {
         "app/ops/catalogue/categories/page": {
           "moduleId": 74491,
@@ -60,7 +60,7 @@
       "exportedName": "resetPasswordAction",
       "filename": "src/app/(auth)/actions.ts"
     },
-    "60f59e56f00d27ad169f247ecf38c7a4cd03126be1": {
+    "601aebc3744c76f22c3554b8ffa1a82226d288a7eb": {
       "workers": {
         "app/ops/catalogue/categories/page": {
           "moduleId": 74491,
@@ -70,27 +70,7 @@
       "exportedName": "markNotificationsRead",
       "filename": "src/app/notification-actions.ts"
     },
-    "601d82ba6f5e6bc4dbae5441a5d883b8b9110e19d9": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "revokeAssignmentAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "6020c37b5ebb6a1f1505f02fe05dab182c721bf9ba": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "upsertTaxAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "602571eb054703e502035845e5fdcfe76670c7f515": {
+    "60087bb40d31680e23b1617bbea6d8ca41f4de9cb4": {
       "workers": {
         "app/ops/catalogue/categories/page": {
           "moduleId": 74491,
@@ -100,227 +80,7 @@
       "exportedName": "submitQuoteAction",
       "filename": "src/app/ops/actions.ts"
     },
-    "6027cef5567e4f6972fd4f850458be1a68cbf8392d": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "tagAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "602ca5080611ae6c6d7635d1689bc7cefc334206aa": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "sendQuoteAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60309924048d1e17186f1d2b013c5d77fb30b25c30": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "imageAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60375320fbeeaa275f828c1e3ced2e17c67d4ab177": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "brandAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "603bde64373d550505371593f875b884d729fe5e11": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "replayEventAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "604d56277f884dc2e40b835cfe697d9ba91b6aab14": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "userStatusAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "606a97e41aa41cf01efbb67cb164f4590bd2decc54": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "orderAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60756fd90c7b874a18f20ae9b11b4b169ae9dfac51": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "simulatorAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "607d20f89339797d1cd24c5d9cfb816d27a80fc21b": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "assignRoleAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "607d39c17a0f30ec80efd6a2fb5bbf89e471daa113": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "connectionStatusAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "6082845fd6a01fd75390fe0caee822dd28788fe23e": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "updateSettingsAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60844b93246346d60880a2d7cc20ee540f75f920e2": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "decideApprovalAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "608b94a4212b917b6c1d588e8c0a73c544904277c8": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "updateProductAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "608ba9f0dc57935154afcdd828fde37390b04c89cf": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "updateMappingAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "609749e298a65fba26e0eefa7c1199cdaac40f8bec": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "createProductAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "609cc3869ded104956f3bd6bc0d5dc89995b8a75e3": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "createUserAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60a0a9084a61dc46226374df9391df5bef9c62d606": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "revokeApiKeyAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60ad84d09db9e5537841846626dba663fd74332a82": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "createApiKeyAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60b9b1735693166acdcc02313c04fa122d600f6d8d": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "adjustStockAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60bb3281d3040708a8ab39b942c604d4eccf8204f8": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "createDepartmentAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60c6c71ef557335ab2fb907be5b4e084fca2c842aa": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "categoryAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60cb19f1a6eddcb73bb64fecd7ee6d77ecf9cf41f6": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "toggleDepartmentAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60d022cd55e8e794e2afb9f64d8c9d1f2f175f9d34": {
+    "6015e495133a0c0d84c8ca23b411de00d5a5044700": {
       "workers": {
         "app/ops/catalogue/categories/page": {
           "moduleId": 74491,
@@ -330,67 +90,27 @@
       "exportedName": "slideAction",
       "filename": "src/app/ops/actions.ts"
     },
-    "60da2dcbfa207264cfacaf88714ab75c08075b8832": {
+    "603c36bfcabe7ca531ac6ddf90938bac0e7d5debff": {
       "workers": {
         "app/ops/catalogue/categories/page": {
           "moduleId": 74491,
           "async": true
         }
       },
-      "exportedName": "addVariantAction",
+      "exportedName": "toggleDepartmentAction",
       "filename": "src/app/ops/actions.ts"
     },
-    "60e38ae2d67a68fefa812cb530ff01fd01d86d5dbb": {
+    "604247ece5c3bf436bd6074cfd67bd1ba11f0dad1e": {
       "workers": {
         "app/ops/catalogue/categories/page": {
           "moduleId": 74491,
           "async": true
         }
       },
-      "exportedName": "convertLeadAction",
+      "exportedName": "tagAction",
       "filename": "src/app/ops/actions.ts"
     },
-    "60e996918f812471d5cb32e80aad5edae64891c89f": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "rotateSecretsAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60eb3ed2114df14ffac99944f2b52fbe5d624b4a1b": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "priceChangeAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60f34d3b5f26763f728f6263239b3b8315db281ca1": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "createQuoteAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60fc5efe3e1ab40045bba9ec1bb20ad62cb5edf2ee": {
-      "workers": {
-        "app/ops/catalogue/categories/page": {
-          "moduleId": 74491,
-          "async": true
-        }
-      },
-      "exportedName": "uploadImageAction",
-      "filename": "src/app/ops/actions.ts"
-    },
-    "60fdacc1029909f9bdb162c2c54b3e8d54a07fb6f1": {
+    "60438b92da09b70196aef372c0036d1d2a3ad6ffa2": {
       "workers": {
         "app/ops/catalogue/categories/page": {
           "moduleId": 74491,
@@ -400,7 +120,77 @@
       "exportedName": "createConnectionAction",
       "filename": "src/app/ops/actions.ts"
     },
-    "60fdfc31a9211066fb26c038b131915ef8096632dd": {
+    "6048d530afe3fc5dcd48e81b1695eae2c913af71d8": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "decideApprovalAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "604beab9599d6fb1a34cb624ac543d8f7fd431694a": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "userStatusAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "604dfc3807420ef63305a4547b75b334fc8473d6d5": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "createUserAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60525bafff02ea85b8a5af720588737e92f49f2c7a": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "createApiKeyAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60577cbcc97a0f335ac9c960ca8d39b7e06deb566d": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "rotateSecretsAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60590965ce645779eb8d3398bd1f5e9814aac1cf16": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "updateSettingsAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "605c87bf19e0d739ea90d71628e75b35e85ca77f70": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "convertLeadAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "605edbce1d49b3636fdfc2bc0b6bb05b38b948b54e": {
       "workers": {
         "app/ops/catalogue/categories/page": {
           "moduleId": 74491,
@@ -408,6 +198,216 @@
         }
       },
       "exportedName": "leadStatusAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "606322b4384ee72c81efd5ca99db451a15bcc7a092": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "categoryAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "6065f41e5652636abb6eb48bed91411c23e92d5a58": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "revokeAssignmentAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "6066eb5f8d44fc61fd6fe4f8eb91ea16fd6fea9e68": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "createProductAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "6069443ecfa16a4ced363e65969d5d31b9b29a8faf": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "orderAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "606bdbcc6c9415682495544e82b5cd26c8c0f3f72b": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "addVariantAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60782bc5dd5c0685a09379b9b19dc50ca5b1feca0a": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "updateMappingAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "607df85c7f4bf2b473c2505a969fde8e0761f119e3": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "adjustStockAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "608ba8f102d36a14e890ee19ec8dc721e47c3e3713": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "assignRoleAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "608d824fe4033f64ebc266cd663533855e5185d5c0": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "simulatorAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "608f3e48861fd6e805af0273562d065c5463f31ab9": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "uploadImageAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60915ff5a03ab0e83776fac58d3da21f5dee68e87f": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "priceChangeAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60a17b4cdaac9564da45fc7ca90d54addcee2adbbb": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "upsertTaxAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60a59a78be476b0605adf43071271c4357eb621f34": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "replayEventAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60a968e787a73f23e43d10fca031841810112ce84c": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "updateProductAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60bb7d7701d7e3da60d0aff7721f5cf2bfcaf437cc": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "brandAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60cd6bc58f00c0ffe5a1745c6df5db15698e95b913": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "imageAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60ce1dc1bce443b51f62f8cfe2247da11ae60df243": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "revokeApiKeyAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60d3f6fe570dbeea39d11bb23479950d4f939a0bde": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "createDepartmentAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60d8ac562b5dc8501060a9f7c5ba78250f7031581d": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "createQuoteAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60e09d21159b91f278985ca10c61555166ce3b11df": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "connectionStatusAction",
+      "filename": "src/app/ops/actions.ts"
+    },
+    "60ee4a1ef07f94692e69b638b438cc6e355b823880": {
+      "workers": {
+        "app/ops/catalogue/categories/page": {
+          "moduleId": 74491,
+          "async": true
+        }
+      },
+      "exportedName": "sendQuoteAction",
       "filename": "src/app/ops/actions.ts"
     }
   },
